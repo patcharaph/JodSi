@@ -1,0 +1,33 @@
+JodSi (จดสิ) — AI Voice-to-Note for Thai speakers
+
+Open the app, tap record, wait a moment — get a beautifully summarized note ready to use!
+
+✨ Key Features:
+
+📌 One-Tap Recording
+Start recording instantly with a single tap. No sign-up required. Real-time audio waveform visualization.
+
+🇹🇭 Thai Language Support
+AI-powered transcription that understands Thai and Thaiglish (Thai-English mix).
+
+🤖 AI Auto-Summary
+- Key Takeaways — Main points at a glance
+- Detail — Extended summary paragraph
+- Action Items — Things to follow up on
+
+📋 Copy & Share
+One tap to copy your summary to LINE, Notes, or any other app.
+
+📌 Bookmarks
+Tap to add bookmarks during recording to mark important moments.
+
+🔒 Secure & Private
+- Data is encrypted
+- Users can only see their own data
+- We never sell data to third parties
+
+Perfect for:
+• Students — Lecture notes, study summaries
+• Professionals — Meeting summaries, idea capture
+• Freelancers — Client briefs, to-do lists
+• Everyone — Who wants notes but hates typing!

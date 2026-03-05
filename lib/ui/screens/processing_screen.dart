@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/l10n/app_localizations.dart';
 import '../../data/models/note.dart';
 import '../../providers/providers.dart';
 
@@ -73,7 +74,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('กำลังประมวลผล'),
+        title: Text(ref.watch(localeProvider).processingTitle),
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () => context.go('/'),
@@ -93,11 +94,11 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
   }
 
   Widget _buildContent(BuildContext context, Note? note) {
-    if (note == null) return _buildError(context, 'ไม่พบโน้ต');
+    if (note == null) return _buildError(context, ref.read(localeProvider).noteNotFound);
 
     final status = note.status;
     if (status == NoteStatus.error) {
-      return _buildError(context, 'เกิดข้อผิดพลาดในการประมวลผล');
+      return _buildError(context, ref.read(localeProvider).processingError);
     }
 
     return Column(
@@ -142,13 +143,13 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
         const Gap(32),
 
         // Progress steps
-        _ProgressSteps(currentStatus: status),
+        _ProgressSteps(currentStatus: status, l10n: ref.read(localeProvider)),
 
         const Gap(48),
 
         if (note.durationSec != null)
           Text(
-            'ความยาว: ${note.durationFormatted}',
+            ref.read(localeProvider).duration(note.durationFormatted),
             style: Theme.of(context).textTheme.bodySmall,
           ),
       ],
@@ -156,12 +157,12 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
   }
 
   Widget _buildLoading(BuildContext context) {
-    return const Column(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        CircularProgressIndicator(color: AppTheme.primaryColor),
-        Gap(16),
-        Text('กำลังโหลด...'),
+        const CircularProgressIndicator(color: AppTheme.primaryColor),
+        const Gap(16),
+        Text(ref.read(localeProvider).loading),
       ],
     );
   }
@@ -176,7 +177,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
         const Gap(24),
         ElevatedButton(
           onPressed: () => context.go('/'),
-          child: const Text('กลับหน้าหลัก'),
+          child: Text(ref.read(localeProvider).goHome),
         ),
       ],
     );
@@ -196,43 +197,46 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
   }
 
   String _statusTitle(NoteStatus status) {
+    final l10n = ref.read(localeProvider);
     switch (status) {
       case NoteStatus.uploading:
-        return 'กำลังอัพโหลดเสียง';
+        return l10n.uploadingAudio;
       case NoteStatus.transcribing:
-        return 'กำลังถอดความ';
+        return l10n.transcribing;
       case NoteStatus.summarizing:
-        return 'กำลังสรุปด้วย AI';
+        return l10n.summarizingAI;
       default:
-        return 'กำลังประมวลผล';
+        return l10n.processingTitle;
     }
   }
 
   String _statusDescription(NoteStatus status) {
+    final l10n = ref.read(localeProvider);
     switch (status) {
       case NoteStatus.uploading:
-        return 'อัพโหลดไฟล์เสียงไปยังเซิร์ฟเวอร์';
+        return l10n.uploadingDesc;
       case NoteStatus.transcribing:
-        return 'Deepgram กำลังถอดเสียงเป็นข้อความ\nอาจใช้เวลาสักครู่';
+        return l10n.transcribingDesc;
       case NoteStatus.summarizing:
-        return 'AI กำลังสรุปเนื้อหาให้คุณ';
+        return l10n.summarizingDesc;
       default:
-        return 'กรุณารอสักครู่...';
+        return l10n.pleaseWait;
     }
   }
 }
 
 class _ProgressSteps extends StatelessWidget {
   final NoteStatus currentStatus;
+  final AppLocalizations l10n;
 
-  const _ProgressSteps({required this.currentStatus});
+  const _ProgressSteps({required this.currentStatus, required this.l10n});
 
   @override
   Widget build(BuildContext context) {
     final steps = [
-      _Step('อัพโหลด', NoteStatus.uploading),
-      _Step('ถอดความ', NoteStatus.transcribing),
-      _Step('สรุป AI', NoteStatus.summarizing),
+      _Step(l10n.stepUpload, NoteStatus.uploading),
+      _Step(l10n.stepTranscribe, NoteStatus.transcribing),
+      _Step(l10n.stepSummarize, NoteStatus.summarizing),
     ];
 
     final currentIndex = steps.indexWhere((s) => s.status == currentStatus);

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,6 +57,7 @@ final recordingProvider =
 class RecordingNotifier extends StateNotifier<RecordingStatus> {
   final Ref _ref;
   Timer? _timer;
+  void Function()? onAutoStop;
 
   RecordingNotifier(this._ref) : super(const RecordingStatus());
 
@@ -81,11 +83,17 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
         errorMessage: null,
       );
 
+      final maxSeconds = AppConfig.freeMaxRecordingMinutes * 60;
+
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (state.state == RecordingState.recording) {
-          state = state.copyWith(
-            elapsedSeconds: state.elapsedSeconds + 1,
-          );
+          final next = state.elapsedSeconds + 1;
+          state = state.copyWith(elapsedSeconds: next);
+
+          // Auto-stop at time limit
+          if (next >= maxSeconds) {
+            onAutoStop?.call();
+          }
         }
       });
 
@@ -117,6 +125,16 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
         filePath: result.filePath,
         noteId: note.id,
       );
+
+      // Clean up local audio file after successful upload
+      try {
+        final localFile = File(result.filePath);
+        if (await localFile.exists()) {
+          await localFile.delete();
+        }
+      } catch (_) {
+        // Non-critical — ignore cleanup errors
+      }
 
       // Update note with audio URL and duration
       final dbService = _ref.read(databaseServiceProvider);

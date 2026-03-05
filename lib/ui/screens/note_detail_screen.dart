@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/l10n/app_localizations.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 
@@ -45,19 +46,19 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen>
           onPressed: () => context.go('/notes'),
         ),
         title: noteAsync.when(
-          data: (note) => Text(note?.displayTitle ?? 'โน้ต'),
-          loading: () => const Text('โน้ต'),
-          error: (_, __) => const Text('โน้ต'),
+          data: (note) => Text(note?.displayTitle ?? ref.read(localeProvider).note),
+          loading: () => Text(ref.read(localeProvider).note),
+          error: (_, __) => Text(ref.read(localeProvider).note),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.copy_rounded),
-            tooltip: 'คัดลอก',
+            tooltip: ref.read(localeProvider).copy,
             onPressed: () => _copyToClipboard(context, summaryAsync),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
-            tooltip: 'ลบ',
+            tooltip: ref.read(localeProvider).delete,
             onPressed: () => _deleteNote(context),
           ),
         ],
@@ -66,9 +67,9 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen>
           indicatorColor: AppTheme.primaryColor,
           labelColor: AppTheme.primaryColor,
           unselectedLabelColor: AppTheme.textTertiary,
-          tabs: const [
-            Tab(text: 'สรุป'),
-            Tab(text: 'ถอดความ'),
+          tabs: [
+            Tab(text: ref.read(localeProvider).tabSummary),
+            Tab(text: ref.read(localeProvider).tabTranscript),
           ],
         ),
       ),
@@ -76,12 +77,13 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen>
         controller: _tabController,
         children: [
           // Tab 1: Summary
-          _SummaryTab(summaryAsync: summaryAsync),
+          _SummaryTab(summaryAsync: summaryAsync, l10n: ref.read(localeProvider)),
 
           // Tab 2: Transcript
           _TranscriptTab(
             transcriptAsync: transcriptAsync,
             noteAsync: noteAsync,
+            l10n: ref.read(localeProvider),
           ),
         ],
       ),
@@ -97,9 +99,9 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen>
 
     Clipboard.setData(ClipboardData(text: summary.toClipboardText()));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('คัดลอกสรุปแล้ว ✓'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text(ref.read(localeProvider).copiedSummary),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -108,17 +110,17 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('ลบโน้ต?'),
-        content: const Text('คุณต้องการลบโน้ตนี้ใช่หรือไม่? ไม่สามารถกู้คืนได้'),
+        title: Text(ref.read(localeProvider).deleteNoteTitle),
+        content: Text(ref.read(localeProvider).deleteNoteMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('ยกเลิก'),
+            child: Text(ref.read(localeProvider).cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
-            child: const Text('ลบ'),
+            child: Text(ref.read(localeProvider).delete),
           ),
         ],
       ),
@@ -133,15 +135,16 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen>
 
 class _SummaryTab extends StatelessWidget {
   final AsyncValue<Summary?> summaryAsync;
+  final AppLocalizations l10n;
 
-  const _SummaryTab({required this.summaryAsync});
+  const _SummaryTab({required this.summaryAsync, required this.l10n});
 
   @override
   Widget build(BuildContext context) {
     return summaryAsync.when(
       data: (summary) {
         if (summary == null) {
-          return const Center(child: Text('ยังไม่มีสรุป'));
+          return Center(child: Text(l10n.noSummaryYet));
         }
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -164,7 +167,7 @@ class _SummaryTab extends StatelessWidget {
               if (summary.detail != null && summary.detail!.isNotEmpty) ...[
                 _SectionHeader(
                   icon: Icons.notes_rounded,
-                  title: 'รายละเอียด',
+                  title: l10n.sectionDetail,
                   color: Colors.blue,
                 ),
                 const Gap(12),
@@ -196,7 +199,7 @@ class _SummaryTab extends StatelessWidget {
       loading: () => const Center(
         child: CircularProgressIndicator(color: AppTheme.primaryColor),
       ),
-      error: (e, _) => Center(child: Text('เกิดข้อผิดพลาด: $e')),
+      error: (e, _) => Center(child: Text(l10n.errorWith(e.toString()))),
     );
   }
 }
@@ -204,10 +207,12 @@ class _SummaryTab extends StatelessWidget {
 class _TranscriptTab extends StatelessWidget {
   final AsyncValue<Transcript?> transcriptAsync;
   final AsyncValue<Note?> noteAsync;
+  final AppLocalizations l10n;
 
   const _TranscriptTab({
     required this.transcriptAsync,
     required this.noteAsync,
+    required this.l10n,
   });
 
   @override
@@ -217,7 +222,7 @@ class _TranscriptTab extends StatelessWidget {
     return transcriptAsync.when(
       data: (transcript) {
         if (transcript == null) {
-          return const Center(child: Text('ยังไม่มีข้อความถอดเสียง'));
+          return Center(child: Text(l10n.noTranscriptYet));
         }
 
         if (transcript.segments.isEmpty && transcript.fullText != null) {
@@ -254,7 +259,7 @@ class _TranscriptTab extends StatelessWidget {
       loading: () => const Center(
         child: CircularProgressIndicator(color: AppTheme.primaryColor),
       ),
-      error: (e, _) => Center(child: Text('เกิดข้อผิดพลาด: $e')),
+      error: (e, _) => Center(child: Text(l10n.errorWith(e.toString()))),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/service_providers.dart';
+import '../../providers/locale_provider.dart';
 import 'package:gap/gap.dart';
 
 class LinkAccountSheet extends ConsumerWidget {
@@ -49,12 +50,12 @@ class LinkAccountSheet extends ConsumerWidget {
           ),
           const Gap(16),
           Text(
-            'เชื่อมบัญชีของคุณ',
+            ref.read(localeProvider).linkAccountTitle,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const Gap(8),
           Text(
-            'เชื่อมบัญชีเพื่อเก็บโน้ตข้ามเครื่อง\nและไม่สูญเสียข้อมูลเมื่อเปลี่ยนเครื่อง',
+            ref.read(localeProvider).linkAccountDesc,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -71,7 +72,7 @@ class LinkAccountSheet extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               icon: const Icon(Icons.chat_bubble_rounded, size: 20),
-              label: const Text('เข้าสู่ระบบด้วย LINE'),
+              label: Text(ref.read(localeProvider).loginWithLine),
             ),
           ),
           const Gap(12),
@@ -88,7 +89,7 @@ class LinkAccountSheet extends ConsumerWidget {
               icon: const Icon(Icons.g_mobiledata_rounded,
                   size: 24, color: AppTheme.textPrimary),
               label: Text(
-                'เข้าสู่ระบบด้วย Google',
+                ref.read(localeProvider).loginWithGoogle,
                 style: TextStyle(color: AppTheme.textPrimary),
               ),
             ),
@@ -98,9 +99,9 @@ class LinkAccountSheet extends ConsumerWidget {
           // Skip
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'ข้ามไปก่อน',
-              style: TextStyle(color: AppTheme.textTertiary),
+            child: Text(
+              ref.read(localeProvider).skipForNow,
+              style: const TextStyle(color: AppTheme.textTertiary),
             ),
           ),
           const Gap(8),
@@ -116,7 +117,7 @@ class LinkAccountSheet extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('LINE Login ยังไม่พร้อมใช้งาน: $e')),
+          SnackBar(content: Text(ref.read(localeProvider).lineLoginError(e.toString()))),
         );
       }
     }
@@ -129,7 +130,7 @@ class LinkAccountSheet extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google Login ยังไม่พร้อมใช้งาน: $e')),
+          SnackBar(content: Text(ref.read(localeProvider).googleLoginError(e.toString()))),
         );
       }
     }

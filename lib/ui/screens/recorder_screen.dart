@@ -19,6 +19,13 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
   void initState() {
     super.initState();
     _ensureAuth();
+
+    // Register auto-stop callback for recording time limit
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(recordingProvider.notifier).onAutoStop = () {
+        _handleRecordTap(context);
+      };
+    });
   }
 
   Future<void> _ensureAuth() async {
@@ -42,13 +49,13 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
         leading: IconButton(
           icon: const Icon(Icons.history_rounded),
           onPressed: () => context.push('/notes'),
-          tooltip: 'ประวัติโน้ต',
+          tooltip: ref.watch(localeProvider).notesHistory,
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_rounded),
             onPressed: () => context.push('/settings'),
-            tooltip: 'ตั้งค่า',
+            tooltip: ref.watch(localeProvider).settings,
           ),
         ],
       ),
@@ -91,7 +98,7 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
             if (recordingStatus.bookmarks.isNotEmpty) ...[
               const Gap(8),
               Text(
-                '📌 ${recordingStatus.bookmarks.length} บุ๊คมาร์ค',
+                ref.watch(localeProvider).bookmarksCount(recordingStatus.bookmarks.length),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppTheme.primaryColor,
                     ),
@@ -108,7 +115,7 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
                   onPressed: () =>
                       ref.read(recordingProvider.notifier).addBookmark(),
                   icon: const Icon(Icons.bookmark_add_rounded, size: 20),
-                  label: const Text('เพิ่มบุ๊คมาร์ค'),
+                  label: Text(ref.watch(localeProvider).addBookmark),
                   style: TextButton.styleFrom(
                     foregroundColor: AppTheme.primaryColor,
                   ),
@@ -143,15 +150,16 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
   }
 
   String _statusText(RecordingStatus status) {
+    final l10n = ref.read(localeProvider);
     switch (status.state) {
       case RecordingState.idle:
-        return 'แตะเพื่อเริ่มอัดเสียง';
+        return l10n.tapToRecord;
       case RecordingState.recording:
-        return 'กำลังอัดเสียง...';
+        return l10n.recording;
       case RecordingState.uploading:
-        return 'กำลังอัพโหลด...';
+        return l10n.uploading;
       case RecordingState.processing:
-        return 'กำลังประมวลผล...';
+        return l10n.processing;
     }
   }
 

@@ -1,4 +1,4 @@
-package com.jodsi.jodsi
+package com.jodsi.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -17,7 +17,7 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ตั้งค่า'),
+        title: Text(ref.watch(localeProvider).settings),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.go('/'),
@@ -66,11 +66,11 @@ class SettingsScreen extends ConsumerWidget {
                   const Gap(12),
                   userAsync.when(
                     data: (user) => Text(
-                      user?.displayName ?? 'ผู้ใช้ไม่ระบุชื่อ',
+                      user?.displayName ?? ref.read(localeProvider).anonymousUser,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    loading: () => const Text('กำลังโหลด...'),
-                    error: (_, __) => const Text('ผู้ใช้ไม่ระบุชื่อ'),
+                    loading: () => Text(ref.read(localeProvider).loading),
+                    error: (_, __) => Text(ref.read(localeProvider).anonymousUser),
                   ),
                   const Gap(4),
                   _IdentityBadge(isAnonymous: isAnonymous),
@@ -81,7 +81,7 @@ class SettingsScreen extends ConsumerWidget {
                       child: ElevatedButton.icon(
                         onPressed: () => LinkAccountSheet.show(context),
                         icon: const Icon(Icons.link_rounded, size: 18),
-                        label: const Text('เชื่อมบัญชี'),
+                        label: Text(ref.read(localeProvider).linkAccount),
                       ),
                     ),
                   ],
@@ -99,7 +99,7 @@ class SettingsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'การใช้งาน',
+                    ref.read(localeProvider).usage,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const Gap(12),
@@ -112,7 +112,7 @@ class SettingsScreen extends ConsumerWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('แพลน'),
+                              Text(ref.read(localeProvider).plan),
                               _PlanBadge(plan: user?.plan ?? 'free'),
                             ],
                           ),
@@ -120,16 +120,16 @@ class SettingsScreen extends ConsumerWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('จำกัดต่อครั้ง'),
-                              Text('$limit นาที'),
+                              Text(ref.read(localeProvider).limitPerSession),
+                              Text(ref.read(localeProvider).minutes(limit)),
                             ],
                           ),
                           const Gap(8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('ใช้ไปเดือนนี้'),
-                              Text('$used นาที'),
+                              Text(ref.read(localeProvider).usedThisMonth),
+                              Text(ref.read(localeProvider).minutes(used)),
                             ],
                           ),
                         ],
@@ -137,7 +137,7 @@ class SettingsScreen extends ConsumerWidget {
                     },
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
-                    error: (_, __) => const Text('ไม่สามารถโหลดข้อมูลได้'),
+                    error: (_, __) => Text(ref.read(localeProvider).cannotLoadData),
                   ),
                 ],
               ),
@@ -160,7 +160,7 @@ class SettingsScreen extends ConsumerWidget {
                     const Gap(12),
                     Expanded(
                       child: Text(
-                        'คุณยังไม่ได้เชื่อมบัญชี หากลบแอปหรือเปลี่ยนเครื่อง โน้ตทั้งหมดจะหายไป',
+                        ref.read(localeProvider).anonymousWarning,
                         style: TextStyle(
                           color: Colors.orange.shade900,
                           fontSize: 13,
@@ -178,14 +178,23 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               children: [
                 ListTile(
+                  leading: const Icon(Icons.language_rounded),
+                  title: Text(ref.read(localeProvider).languageSetting),
+                  trailing: Text(ref.watch(localeProvider).languageLabel),
+                  onTap: () {
+                    ref.read(localeProvider.notifier).toggle();
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.info_outline_rounded),
-                  title: const Text('เวอร์ชัน'),
+                  title: Text(ref.read(localeProvider).version),
                   trailing: const Text(AppConfig.appVersion),
                 ),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.logout_rounded),
-                  title: const Text('ออกจากระบบ'),
+                  title: Text(ref.read(localeProvider).signOut),
                   onTap: () => _signOut(context, ref),
                 ),
               ],
@@ -199,23 +208,24 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _signOut(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('ออกจากระบบ?'),
-        content: const Text(
-          'หากคุณเป็นผู้ใช้ Anonymous ข้อมูลทั้งหมดจะหายไป',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('ยกเลิก'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
-            child: const Text('ออกจากระบบ'),
-          ),
-        ],
-      ),
+      builder: (ctx) {
+        final l10n = ref.read(localeProvider);
+        return AlertDialog(
+          title: Text(l10n.signOutTitle),
+          content: Text(l10n.signOutMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+              child: Text(l10n.signOut),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed == true) {

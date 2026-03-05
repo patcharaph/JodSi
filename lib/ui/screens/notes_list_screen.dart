@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../core/theme/app_theme.dart';
+import '../../core/l10n/app_localizations.dart';
 import '../../data/models/note.dart';
 import '../../providers/providers.dart';
 
@@ -13,10 +14,11 @@ class NotesListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notesAsync = ref.watch(notesListProvider);
+    final l10n = ref.watch(localeProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('โน้ตทั้งหมด'),
+        title: Text(l10n.allNotes),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.go('/'),
@@ -25,7 +27,7 @@ class NotesListScreen extends ConsumerWidget {
       body: notesAsync.when(
         data: (notes) {
           if (notes.isEmpty) {
-            return _EmptyState();
+            return _EmptyState(l10n: l10n);
           }
           return RefreshIndicator(
             color: AppTheme.primaryColor,
@@ -37,7 +39,7 @@ class NotesListScreen extends ConsumerWidget {
               separatorBuilder: (_, __) => const Gap(8),
               itemBuilder: (context, index) {
                 final note = notes[index];
-                return _NoteCard(note: note);
+                return _NoteCard(note: note, l10n: l10n);
               },
             ),
           );
@@ -52,12 +54,12 @@ class NotesListScreen extends ConsumerWidget {
               const Icon(Icons.error_outline_rounded,
                   size: 48, color: AppTheme.errorColor),
               const Gap(16),
-              Text('เกิดข้อผิดพลาด: $e'),
+              Text(l10n.errorWith(e.toString())),
               const Gap(16),
               ElevatedButton(
                 onPressed: () =>
                     ref.read(notesListProvider.notifier).refresh(),
-                child: const Text('ลองใหม่'),
+                child: Text(l10n.retry),
               ),
             ],
           ),
@@ -74,6 +76,9 @@ class NotesListScreen extends ConsumerWidget {
 }
 
 class _EmptyState extends StatelessWidget {
+  final AppLocalizations l10n;
+  const _EmptyState({required this.l10n});
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -89,12 +94,12 @@ class _EmptyState extends StatelessWidget {
             ),
             const Gap(24),
             Text(
-              'ยังไม่มีโน้ต',
+              l10n.noNotesYet,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const Gap(8),
             Text(
-              'เริ่มอัดเสียงเพื่อสร้างโน้ตแรกของคุณ',
+              l10n.startRecordingPrompt,
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
@@ -102,7 +107,7 @@ class _EmptyState extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: () => context.go('/'),
               icon: const Icon(Icons.mic_rounded),
-              label: const Text('อัดเสียง'),
+              label: Text(l10n.recordVoice),
             ),
           ],
         ),
@@ -113,8 +118,9 @@ class _EmptyState extends StatelessWidget {
 
 class _NoteCard extends StatelessWidget {
   final Note note;
+  final AppLocalizations l10n;
 
-  const _NoteCard({required this.note});
+  const _NoteCard({required this.note, required this.l10n});
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +184,7 @@ class _NoteCard extends StatelessWidget {
                         ),
                         if (note.isProcessing) ...[
                           const Gap(8),
-                          _StatusBadge(status: note.status),
+                          _StatusBadge(status: note.status, l10n: l10n),
                         ],
                       ],
                     ),
@@ -226,7 +232,8 @@ class _NoteCard extends StatelessWidget {
 
 class _StatusBadge extends StatelessWidget {
   final NoteStatus status;
-  const _StatusBadge({required this.status});
+  final AppLocalizations l10n;
+  const _StatusBadge({required this.status, required this.l10n});
 
   @override
   Widget build(BuildContext context) {
@@ -250,13 +257,13 @@ class _StatusBadge extends StatelessWidget {
   String get _label {
     switch (status) {
       case NoteStatus.uploading:
-        return 'อัพโหลด';
+        return l10n.badgeUploading;
       case NoteStatus.transcribing:
-        return 'ถอดความ';
+        return l10n.badgeTranscribing;
       case NoteStatus.summarizing:
-        return 'สรุป';
+        return l10n.badgeSummarizing;
       default:
-        return 'ประมวลผล';
+        return l10n.badgeProcessing;
     }
   }
 }
