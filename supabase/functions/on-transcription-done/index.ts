@@ -5,6 +5,7 @@ const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
 const OPENROUTER_MODEL = Deno.env.get("OPENROUTER_MODEL") || "google/gemini-flash-1.5";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET")!;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,10 +41,21 @@ serve(async (req: Request) => {
     const url = new URL(req.url);
     const noteId = url.searchParams.get("note_id");
 
-    if (!noteId) {
+    const secret = url.searchParams.get("secret");
+
+    if (!noteId || !secret) {
       return new Response(
-        JSON.stringify({ error: "note_id query param is required" }),
+        JSON.stringify({ error: "note_id and secret query params are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify webhook secret to prevent unauthorized calls
+    if (secret !== WEBHOOK_SECRET) {
+      console.error("Invalid webhook secret for note:", noteId);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

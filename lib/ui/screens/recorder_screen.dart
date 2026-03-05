@@ -163,12 +163,16 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
       await notifier.startRecording();
     } else if (status.state == RecordingState.recording) {
       final noteId = await notifier.stopRecording();
+
+      // Check soft prompt before resetting state
+      final shouldPrompt = await notifier.shouldShowSoftPrompt();
+      final isAnon = ref.read(isAnonymousProvider);
+
+      notifier.reset();
+
       if (noteId != null && mounted) {
         context.push('/processing/$noteId');
 
-        // Check soft prompt
-        final shouldPrompt = await notifier.shouldShowSoftPrompt();
-        final isAnon = ref.read(isAnonymousProvider);
         if (shouldPrompt && isAnon && mounted) {
           await Future.delayed(const Duration(milliseconds: 500));
           if (mounted) {
@@ -176,7 +180,6 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
           }
         }
       }
-      notifier.reset();
     }
   }
 }

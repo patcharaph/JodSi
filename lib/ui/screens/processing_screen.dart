@@ -215,7 +215,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
       case NoteStatus.transcribing:
         return 'Deepgram กำลังถอดเสียงเป็นข้อความ\nอาจใช้เวลาสักครู่';
       case NoteStatus.summarizing:
-        return 'Gemini กำลังสรุปเนื้อหาให้คุณ';
+        return 'AI กำลังสรุปเนื้อหาให้คุณ';
       default:
         return 'กรุณารอสักครู่...';
     }

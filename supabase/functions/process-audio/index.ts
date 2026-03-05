@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET")!;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,7 +37,7 @@ serve(async (req: Request) => {
       .eq("id", note_id);
 
     // Build Deepgram callback URL
-    const callbackUrl = `${SUPABASE_URL}/functions/v1/on-transcription-done?note_id=${note_id}`;
+    const callbackUrl = `${SUPABASE_URL}/functions/v1/on-transcription-done?note_id=${note_id}&secret=${WEBHOOK_SECRET}`;
 
     // Send audio to Deepgram with callback
     const deepgramUrl = new URL("https://api.deepgram.com/v1/listen");
