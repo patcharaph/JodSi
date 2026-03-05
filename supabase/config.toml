@@ -1,0 +1,23 @@
+[project]
+id = "your-project-ref"
+
+[api]
+port = 54321
+schemas = ["public", "storage"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = true
+
+[auth.external.google]
+enabled = false
+client_id = ""
+secret = ""
+
+[storage]
+file_size_limit = "50MiB"

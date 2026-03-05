@@ -1,0 +1,61 @@
+name: jodsi
+description: "AI Voice-to-Note สำหรับคนไทย — อัดเสียง ได้โน้ตสรุปสวยๆ"
+publish_to: 'none'
+version: 2.1.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # Supabase
+  supabase_flutter: ^2.8.4
+
+  # Audio Recording
+  record: ^5.2.1
+
+  # Storage
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # UI
+  flutter_animate: ^4.5.2
+  google_fonts: ^6.2.1
+  gap: ^3.0.1
+  shimmer: ^3.0.0
+
+  # Utilities
+  uuid: ^4.5.1
+  intl: ^0.20.2
+  timeago: ^3.7.0
+  share_plus: ^10.1.4
+  url_launcher: ^6.3.1
+
+  # Local Storage
+  shared_preferences: ^2.3.5
+
+  # Permissions
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  riverpod_generator: ^2.6.3
+  build_runner: ^2.4.14
+  json_serializable: ^6.9.4
+  json_annotation: ^4.9.0
+
+flutter:
+  uses-material-design: true
