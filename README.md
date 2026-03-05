@@ -6,7 +6,7 @@ AI Voice-to-Note สำหรับคนไทย — เปิดแอป อ
 
 - **One-tap Recording** — กดปุ่มเดียว อัดได้ทันที พร้อม Real-time Amplitude bar
 - **Thai Transcription** — Deepgram Nova-2 รองรับไทย + Thaiglish
-- **AI Summary** — Gemini 1.5 Flash สรุป Key Takeaways + Detail + Action Items
+- **AI Summary** — OpenRouter (LLM gateway) สรุป Key Takeaways + Detail + Action Items
 - **Copy & Share** — กดปุ่มเดียว Copy ไปใช้งานต่อ
 - **Anonymous-First** — ใช้ก่อน สมัครทีหลัง ไม่มี Login Wall
 
@@ -17,7 +17,7 @@ AI Voice-to-Note สำหรับคนไทย — เปิดแอป อ
 | Mobile | Flutter (Dart) |
 | Backend | Supabase (Auth + DB + Storage + Edge Functions + Realtime) |
 | Speech-to-Text | Deepgram Nova-2 |
-| Summarization | Gemini 1.5 Flash |
+| Summarization | OpenRouter → Gemini / GPT / Claude (เลือกได้) |
 | Database | PostgreSQL (Supabase) |
 
 ## Project Structure
@@ -43,7 +43,7 @@ supabase/
 │   └── 00001_initial_schema.sql    # Database schema + RLS policies
 └── functions/
     ├── process-audio/              # Edge Function: upload → Deepgram
-    └── on-transcription-done/      # Edge Function: Deepgram callback → Gemini → DB
+    └── on-transcription-done/      # Edge Function: Deepgram callback → OpenRouter LLM → DB
 ```
 
 ## Setup
@@ -53,7 +53,7 @@ supabase/
 - Flutter SDK (3.10+)
 - Supabase account
 - Deepgram API key
-- Google AI (Gemini) API key
+- OpenRouter API key (https://openrouter.ai)
 
 ### 2. Supabase Setup
 
@@ -68,7 +68,8 @@ supabase/
 
 # Set Edge Function secrets:
 supabase secrets set DEEPGRAM_API_KEY=your-key
-supabase secrets set GEMINI_API_KEY=your-key
+supabase secrets set OPENROUTER_API_KEY=your-key
+supabase secrets set OPENROUTER_MODEL=google/gemini-flash-1.5  # หรือเปลี่ยนเป็นโมเดลอื่น
 
 # Deploy Edge Functions:
 supabase functions deploy process-audio
@@ -118,7 +119,7 @@ Flutter (record .m4a)
   → Edge Function [process-audio]
   → Deepgram Nova-2 (transcribe, with callback URL)
   → Edge Function [on-transcription-done] (webhook)
-  → Gemini 1.5 Flash (summarize)
+  → OpenRouter LLM (summarize, default: gemini-flash-1.5)
   → PostgreSQL (save results)
   → Supabase Realtime → Flutter (display)
 ```

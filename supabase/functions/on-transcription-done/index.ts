@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
+const OPENROUTER_MODEL = Deno.env.get("OPENROUTER_MODEL") || "google/gemini-flash-1.5";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -11,7 +12,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const GEMINI_PROMPT = `คุณคือผู้ช่วยสรุปโน้ตภาษาไทย จากข้อความถอดเสียงด้านล่าง กรุณาสรุปเป็น JSON ตาม schema นี้:
+const SYSTEM_PROMPT = `คุณคือผู้ช่วยสรุปโน้ตภาษาไทย กรุณาสรุปข้อความถอดเสียงเป็น JSON ตาม schema นี้:
 
 {
   "title": "ชื่อโน้ตสั้นๆ ภาษาไทย (ไม่เกิน 50 ตัวอักษร)",
@@ -27,8 +28,7 @@ const GEMINI_PROMPT = `คุณคือผู้ช่วยสรุปโน
 - action_items: สิ่งที่ต้องทำ (ถ้ามี) ถ้าไม่มีให้ใส่ array ว่าง
 - ใช้ภาษาไทยทั้งหมด (ยกเว้นคำศัพท์เทคนิค)
 
-ข้อความถอดเสียง:
-`;
+ตอบเป็น JSON เท่านั้น ห้ามครอบด้วย markdown code block`;
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -123,47 +123,48 @@ serve(async (req: Request) => {
       });
     }
 
-    // ─── Gemini Summarization ──────────────────────────
+    // ─── OpenRouter LLM Summarization ─────────────────
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-    const geminiResponse = await fetch(geminiUrl, {
+    const openrouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://jodsi.app",
+        "X-Title": "JodSi",
+      },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: GEMINI_PROMPT + fullText }],
-          },
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: `ข้อความถอดเสียง:\n${fullText}` },
         ],
-        generationConfig: {
-          temperature: 0.3,
-          topP: 0.8,
-          maxOutputTokens: 2048,
-          responseMimeType: "application/json",
-        },
+        temperature: 0.3,
+        top_p: 0.8,
+        max_tokens: 2048,
+        response_format: { type: "json_object" },
       }),
     });
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error("Gemini error:", errorText);
+    if (!openrouterResponse.ok) {
+      const errorText = await openrouterResponse.text();
+      console.error("OpenRouter error:", errorText);
       await supabase.from("notes").update({ status: "error" }).eq("id", noteId);
       return new Response(
-        JSON.stringify({ error: "Gemini request failed", details: errorText }),
+        JSON.stringify({ error: "OpenRouter request failed", details: errorText }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const geminiResult = await geminiResponse.json();
+    const openrouterResult = await openrouterResponse.json();
     const generatedText =
-      geminiResult?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      openrouterResult?.choices?.[0]?.message?.content || "{}";
 
     let summary;
     try {
       summary = JSON.parse(generatedText);
     } catch {
-      console.error("Failed to parse Gemini JSON:", generatedText);
+      console.error("Failed to parse LLM JSON:", generatedText);
       summary = {
         title: "โน้ตไม่มีชื่อ",
         key_takeaways: [],
