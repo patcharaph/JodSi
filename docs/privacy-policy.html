@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>นโยบายความเป็นส่วนตัว — JodSi (จดสิ)</title>
+  <style>
+    :root {
+      --primary: #E5A821;
+      --primary-dark: #CB9119;
+      --bg: #F8F9FA;
+      --surface: #FFFFFF;
+      --text: #1A1A2E;
+      --text-secondary: #6B7280;
+      --border: #E5E7EB;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans Thai', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.8;
+      font-size: 16px;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .logo {
+      width: 72px;
+      height: 72px;
+      background: var(--primary);
+      border-radius: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      font-size: 36px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .lang-switch {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+
+    .lang-btn {
+      padding: 8px 20px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+
+    .lang-btn.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .lang-btn:hover:not(.active) {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    .section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section h2 .icon {
+      font-size: 20px;
+    }
+
+    .section p,
+    .section li {
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .section ul {
+      padding-left: 20px;
+    }
+
+    .section li {
+      margin-bottom: 6px;
+    }
+
+    .highlight {
+      background: #FFF3D6;
+      border-left: 4px solid var(--primary);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+
+    .highlight p {
+      color: var(--text);
+      font-weight: 500;
+      margin: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    th {
+      font-weight: 600;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    td {
+      color: var(--text-secondary);
+    }
+
+    .footer {
+      text-align: center;
+      padding-top: 32px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .footer a {
+      color: var(--primary-dark);
+      text-decoration: none;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 24px 16px 60px;
+      }
+      .section {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">✏️</div>
+    <h1>JodSi (จดสิ)</h1>
+    <p>นโยบายความเป็นส่วนตัว / Privacy Policy</p>
+  </div>
+
+  <!-- Language Switch -->
+  <div class="lang-switch">
+    <button class="lang-btn active" onclick="switchLang('th')" id="btn-th">🇹🇭 ภาษาไทย</button>
+    <button class="lang-btn" onclick="switchLang('en')" id="btn-en">🇬🇧 English</button>
+  </div>
+
+  <!-- ======================== THAI ======================== -->
+  <div id="content-th">
+
+    <div class="section">
+      <h2><span class="icon">📋</span> บทนำ</h2>
+      <p>JodSi (จดสิ) เป็นแอปพลิเคชัน AI Voice-to-Note ที่ช่วยแปลงเสียงเป็นโน้ตสรุปอัตโนมัติ เราให้ความสำคัญกับความเป็นส่วนตัวของผู้ใช้เป็นอันดับแรก</p>
+      <div class="highlight">
+        <p>นโยบายนี้มีผลบังคับใช้ตั้งแต่วันที่ 1 มีนาคม 2026</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">📦</span> ข้อมูลที่เราเก็บ</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ประเภทข้อมูล</th>
+            <th>รายละเอียด</th>
+            <th>เมื่อไหร่</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Anonymous ID</td>
+            <td>สร้างอัตโนมัติเมื่อเปิดแอป ไม่ผูกกับตัวตน</td>
+            <td>เปิดแอปครั้งแรก</td>
+          </tr>
+          <tr>
+            <td>ไฟล์เสียง</td>
+            <td>ไฟล์บันทึกเสียง .m4a ที่คุณอัดเอง</td>
+            <td>เมื่ออัดเสียง</td>
+          </tr>
+          <tr>
+            <td>ข้อความถอดเสียง</td>
+            <td>ผลลัพธ์จากการแปลงเสียงเป็นข้อความ</td>
+            <td>หลังอัดเสร็จ</td>
+          </tr>
+          <tr>
+            <td>สรุป AI</td>
+            <td>Key Takeaways, รายละเอียด, Action Items</td>
+            <td>หลังถอดเสียงเสร็จ</td>
+          </tr>
+          <tr>
+            <td>โปรไฟล์ (ถ้าเชื่อม)</td>
+            <td>ชื่อ, อีเมล, รูปโปรไฟล์ จาก LINE/Google</td>
+            <td>เมื่อเชื่อมบัญชี</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">🔒</span> วิธีที่เราใช้ข้อมูล</h2>
+      <ul>
+        <li><strong>ถอดเสียงเป็นข้อความ</strong> — ส่งไฟล์เสียงไปยัง Deepgram API เพื่อแปลงเป็นข้อความ</li>
+        <li><strong>สรุปด้วย AI</strong> — ส่งข้อความถอดเสียงไปยัง Google Gemini API เพื่อสร้างสรุป</li>
+        <li><strong>จัดเก็บข้อมูล</strong> — เก็บโน้ตและเสียงบน Supabase (เซิร์ฟเวอร์ที่ปลอดภัย) เพื่อให้คุณเข้าถึงได้</li>
+        <li><strong>ปรับปรุงบริการ</strong> — วิเคราะห์การใช้งานแบบรวม (ไม่ระบุตัวตน) เพื่อพัฒนาแอป</li>
+      </ul>
+      <div class="highlight">
+        <p>⚠️ เราไม่ขายข้อมูลของคุณให้บุคคลที่สาม</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">🤝</span> บริการภายนอกที่ใช้</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>บริการ</th>
+            <th>หน้าที่</th>
+            <th>ข้อมูลที่ส่ง</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Supabase</td>
+            <td>Auth, Database, Storage</td>
+            <td>ข้อมูลผู้ใช้, ไฟล์เสียง, โน้ต</td>
+          </tr>
+          <tr>
+            <td>Deepgram</td>
+            <td>Speech-to-Text</td>
+            <td>ไฟล์เสียง (URL)</td>
+          </tr>
+          <tr>
+            <td>Google Gemini</td>
+            <td>AI Summarization</td>
+            <td>ข้อความถอดเสียง</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>แต่ละบริการมีนโยบายความเป็นส่วนตัวของตนเอง กรุณาศึกษาเพิ่มเติมจากเว็บไซต์ของผู้ให้บริการแต่ละราย</p>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">👤</span> บัญชี Anonymous</h2>
+      <p>เมื่อเปิดแอป ระบบจะสร้าง Anonymous ID ให้อัตโนมัติ โดยไม่ต้องกรอกข้อมูลใดๆ คุณสามารถใช้งานได้เต็มที่โดยไม่ต้องสมัครสมาชิก</p>
+      <ul>
+        <li>บัญชี Anonymous ที่ไม่มีการใช้งานเกิน <strong>90 วัน</strong> จะถูกลบอัตโนมัติพร้อมข้อมูลทั้งหมด</li>
+        <li>หากคุณลบแอปหรือเปลี่ยนเครื่องโดยไม่ได้เชื่อมบัญชี ข้อมูลจะไม่สามารถกู้คืนได้</li>
+        <li>คุณสามารถเชื่อมบัญชี LINE หรือ Google ได้ทุกเมื่อเพื่อรักษาข้อมูล</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">🛡️</span> ความปลอดภัย</h2>
+      <ul>
+        <li>ข้อมูลถูกเข้ารหัสระหว่างการส่งผ่าน (TLS/SSL)</li>
+        <li>ฐานข้อมูลมี Row Level Security (RLS) — ผู้ใช้เห็นเฉพาะข้อมูลของตนเอง</li>
+        <li>API Keys ถูกเก็บอย่างปลอดภัยบนฝั่งเซิร์ฟเวอร์ ไม่ฝังในแอป</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">✅</span> สิทธิ์ของผู้ใช้</h2>
+      <ul>
+        <li><strong>เข้าถึงข้อมูล</strong> — ดูโน้ต, เสียง, สรุปของคุณได้ทุกเมื่อผ่านแอป</li>
+        <li><strong>ลบข้อมูล</strong> — ลบโน้ตแต่ละรายการ หรือลบบัญชีทั้งหมดได้</li>
+        <li><strong>ส่งออกข้อมูล</strong> — คัดลอกสรุปเป็นข้อความได้ทุกเมื่อ</li>
+        <li><strong>ยกเลิกบริการ</strong> — หยุดใช้แอปได้ทุกเมื่อ ข้อมูล Anonymous จะถูกลบอัตโนมัติภายใน 90 วัน</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">👶</span> เด็กและเยาวชน</h2>
+      <p>แอปนี้ไม่ได้ออกแบบมาสำหรับเด็กอายุต่ำกว่า 13 ปี เราไม่ได้ตั้งใจเก็บข้อมูลจากเด็ก หากผู้ปกครองพบว่าบุตรหลานใช้แอปนี้ กรุณาติดต่อเราเพื่อลบข้อมูล</p>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">📝</span> การเปลี่ยนแปลงนโยบาย</h2>
+      <p>เราอาจปรับปรุงนโยบายนี้เป็นครั้งคราว หากมีการเปลี่ยนแปลงที่สำคัญ เราจะแจ้งให้ทราบผ่านแอปพลิเคชัน</p>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">📧</span> ติดต่อเรา</h2>
+      <p>หากมีคำถามเกี่ยวกับนโยบายนี้ กรุณาติดต่อ:</p>
+      <p><strong>อีเมล:</strong> support@jodsi.app</p>
+    </div>
+
+  </div>
+
+  <!-- ======================== ENGLISH ======================== -->
+  <div id="content-en" class="hidden">
+
+    <div class="section">
+      <h2><span class="icon">📋</span> Introduction</h2>
+      <p>JodSi (จดสิ) is an AI Voice-to-Note application that converts voice recordings into summarized notes. We prioritize your privacy above all else.</p>
+      <div class="highlight">
+        <p>This policy is effective as of March 1, 2026.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">📦</span> Data We Collect</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Data Type</th>
+            <th>Details</th>
+            <th>When</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Anonymous ID</td>
+            <td>Auto-generated on app launch, not tied to identity</td>
+            <td>First app open</td>
+          </tr>
+          <tr>
+            <td>Audio Files</td>
+            <td>.m4a voice recordings you create</td>
+            <td>When you record</td>
+          </tr>
+          <tr>
+            <td>Transcripts</td>
+            <td>Speech-to-text results from your recordings</td>
+            <td>After recording</td>
+          </tr>
+          <tr>
+            <td>AI Summaries</td>
+            <td>Key Takeaways, Details, Action Items</td>
+            <td>After transcription</td>
+          </tr>
+          <tr>
+            <td>Profile (if linked)</td>
+            <td>Name, email, profile photo from LINE/Google</td>
+            <td>When you link an account</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">🔒</span> How We Use Your Data</h2>
+      <ul>
+        <li><strong>Transcription</strong> — Audio files are sent to Deepgram API for speech-to-text conversion</li>
+        <li><strong>AI Summarization</strong> — Transcribed text is sent to Google Gemini API for summarization</li>
+        <li><strong>Storage</strong> — Notes and audio are stored on Supabase (secure servers) so you can access them</li>
+        <li><strong>Service Improvement</strong> — Aggregate, anonymized usage analytics to improve the app</li>
+      </ul>
+      <div class="highlight">
+        <p>⚠️ We do NOT sell your data to third parties.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">🤝</span> Third-Party Services</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Purpose</th>
+            <th>Data Shared</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Supabase</td>
+            <td>Auth, Database, Storage</td>
+            <td>User data, audio files, notes</td>
+          </tr>
+          <tr>
+            <td>Deepgram</td>
+            <td>Speech-to-Text</td>
+            <td>Audio file (URL)</td>
+          </tr>
+          <tr>
+            <td>Google Gemini</td>
+            <td>AI Summarization</td>
+            <td>Transcribed text</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Each service has its own privacy policy. Please refer to their respective websites for details.</p>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">👤</span> Anonymous Accounts</h2>
+      <p>When you open the app, an Anonymous ID is created automatically — no sign-up required. You can use all features without creating an account.</p>
+      <ul>
+        <li>Anonymous accounts inactive for more than <strong>90 days</strong> are automatically deleted along with all associated data</li>
+        <li>If you uninstall the app or switch devices without linking an account, your data cannot be recovered</li>
+        <li>You can link a LINE or Google account at any time to preserve your data</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">🛡️</span> Security</h2>
+      <ul>
+        <li>Data is encrypted in transit (TLS/SSL)</li>
+        <li>Database uses Row Level Security (RLS) — users can only see their own data</li>
+        <li>API keys are stored securely on the server, never embedded in the app</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">✅</span> Your Rights</h2>
+      <ul>
+        <li><strong>Access</strong> — View your notes, audio, and summaries anytime through the app</li>
+        <li><strong>Deletion</strong> — Delete individual notes or your entire account</li>
+        <li><strong>Export</strong> — Copy summaries as text at any time</li>
+        <li><strong>Opt-out</strong> — Stop using the app at any time. Anonymous data is auto-deleted within 90 days</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">👶</span> Children</h2>
+      <p>This app is not designed for children under 13. We do not knowingly collect data from children. If a parent discovers their child is using this app, please contact us to have the data removed.</p>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">📝</span> Policy Changes</h2>
+      <p>We may update this policy from time to time. If there are significant changes, we will notify you through the application.</p>
+    </div>
+
+    <div class="section">
+      <h2><span class="icon">📧</span> Contact Us</h2>
+      <p>If you have questions about this policy, please contact:</p>
+      <p><strong>Email:</strong> support@jodsi.app</p>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>&copy; 2026 JodSi (จดสิ). All rights reserved.</p>
+  </div>
+
+</div>
+
+<script>
+  function switchLang(lang) {
+    document.getElementById('content-th').classList.toggle('hidden', lang !== 'th');
+    document.getElementById('content-en').classList.toggle('hidden', lang !== 'en');
+    document.getElementById('btn-th').classList.toggle('active', lang === 'th');
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  }
+</script>
+
+</body>
+</html>
