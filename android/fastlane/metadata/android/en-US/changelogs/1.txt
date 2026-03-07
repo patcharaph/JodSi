@@ -1,0 +1,8 @@
+🎉 Initial Release!
+
+• One-tap recording with real-time waveform
+• Thai + Thaiglish transcription powered by Deepgram Nova-2
+• AI auto-summary — Key Takeaways, Detail, Action Items
+• Copy & Share to any app instantly
+• Bilingual support (Thai / English)
+• No sign-up required — start using immediately
