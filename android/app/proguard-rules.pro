@@ -13,3 +13,6 @@
 
 # Keep Kotlin metadata
 -keep class kotlin.Metadata { *; }
+
+# Google Play Core (used by Flutter deferred components)
+-dontwarn com.google.android.play.core.**
