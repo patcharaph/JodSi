@@ -179,13 +179,11 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
       notifier.reset();
 
       if (noteId != null && mounted) {
-        context.push('/processing/$noteId');
+        await context.push('/processing/$noteId');
 
+        // Show soft prompt only after returning from processing screen
         if (shouldPrompt && isAnon && mounted) {
-          await Future.delayed(const Duration(milliseconds: 500));
-          if (mounted) {
-            LinkAccountSheet.show(context);
-          }
+          LinkAccountSheet.show(context);
         }
       }
     }
