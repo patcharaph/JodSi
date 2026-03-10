@@ -25,4 +25,9 @@ abstract class AppConfig {
 
   // Storage bucket
   static const String audioBucket = 'audio';
+
+  // Admin emails (can access Admin Dashboard)
+  static const List<String> adminEmails = [
+    'adminjodsi@jodsi.com',
+  ];
 }

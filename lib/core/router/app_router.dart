@@ -6,6 +6,8 @@ import '../../ui/screens/note_detail_screen.dart';
 import '../../ui/screens/notes_list_screen.dart';
 import '../../ui/screens/settings_screen.dart';
 import '../../ui/screens/admin_dashboard_screen.dart';
+import '../config/app_config.dart';
+import '../config/supabase_config.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -38,7 +40,18 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/admin',
-      builder: (context, state) => const AdminDashboardScreen(),
+      builder: (context, state) {
+        final email = SupabaseConfig.client.auth.currentUser?.email;
+        final isAdmin = email != null &&
+            AppConfig.adminEmails.contains(email.toLowerCase());
+        if (!isAdmin) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Access Denied')),
+            body: const Center(child: Text('You do not have admin access.')),
+          );
+        }
+        return const AdminDashboardScreen();
+      },
     ),
   ],
   errorBuilder: (context, state) => Scaffold(

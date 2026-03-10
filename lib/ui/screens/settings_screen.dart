@@ -192,12 +192,14 @@ class SettingsScreen extends ConsumerWidget {
                   title: Text(ref.read(localeProvider).feedback),
                   onTap: () => FeedbackSheet.show(context),
                 ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.admin_panel_settings_rounded),
-                  title: Text(ref.read(localeProvider).adminDashboard),
-                  onTap: () => context.push('/admin'),
-                ),
+                if (ref.watch(isAdminProvider)) ...[
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.admin_panel_settings_rounded),
+                    title: Text(ref.read(localeProvider).adminDashboard),
+                    onTap: () => context.push('/admin'),
+                  ),
+                ],
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.info_outline_rounded),
