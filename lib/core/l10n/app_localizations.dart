@@ -145,6 +145,17 @@ class AppLocalizations {
   String get feedback => _t('ส่ง Feedback', 'Send Feedback');
   String get adminDashboard => _t('Admin Dashboard', 'Admin Dashboard');
 
+  // ─── Delete ─────────────────────────────────────────
+  String get selectNotes => _t('เลือกโน้ต', 'Select Notes');
+  String selectedCount(int n) => _t('เลือก $n รายการ', '$n selected');
+  String get deleteSelected =>
+      _t('ลบที่เลือก', 'Delete Selected');
+  String deleteMultipleMessage(int n) =>
+      _t('ต้องการลบ $n โน้ตที่เลือกหรือไม่?\nจะลบทั้งเสียงและข้อมูลถอดความ',
+          'Delete $n selected notes?\nThis will also delete audio and transcripts');
+  String get noteDeleted => _t('ลบโน้ตแล้ว', 'Note deleted');
+  String notesDeleted(int n) => _t('ลบ $n โน้ตแล้ว', '$n notes deleted');
+
   // ─── Model fallbacks ──────────────────────────────
   String get untitledNote => _t('โน้ตไม่มีชื่อ', 'Untitled Note');
 

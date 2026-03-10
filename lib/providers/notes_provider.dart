@@ -48,9 +48,24 @@ class NotesListNotifier extends AsyncNotifier<List<Note>> {
 
   Future<void> deleteNote(String noteId) async {
     final dbService = ref.read(databaseServiceProvider);
+    final storageService = ref.read(storageServiceProvider);
+    try { await storageService.deleteAudio(noteId); } catch (_) {}
     await dbService.deleteNote(noteId);
     final currentNotes = state.valueOrNull ?? [];
     state = AsyncData(currentNotes.where((n) => n.id != noteId).toList());
+  }
+
+  Future<void> deleteMultipleNotes(List<String> noteIds) async {
+    final dbService = ref.read(databaseServiceProvider);
+    final storageService = ref.read(storageServiceProvider);
+    for (final id in noteIds) {
+      try { await storageService.deleteAudio(id); } catch (_) {}
+      await dbService.deleteNote(id);
+    }
+    final currentNotes = state.valueOrNull ?? [];
+    state = AsyncData(
+      currentNotes.where((n) => !noteIds.contains(n.id)).toList(),
+    );
   }
 }
 

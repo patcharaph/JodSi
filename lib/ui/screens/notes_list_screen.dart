@@ -8,22 +8,142 @@ import '../../core/l10n/app_localizations.dart';
 import '../../data/models/note.dart';
 import '../../providers/providers.dart';
 
-class NotesListScreen extends ConsumerWidget {
+class NotesListScreen extends ConsumerStatefulWidget {
   const NotesListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotesListScreen> createState() => _NotesListScreenState();
+}
+
+class _NotesListScreenState extends ConsumerState<NotesListScreen> {
+  bool _selectMode = false;
+  final Set<String> _selected = {};
+
+  void _toggleSelectMode() {
+    setState(() {
+      _selectMode = !_selectMode;
+      if (!_selectMode) _selected.clear();
+    });
+  }
+
+  void _toggleItem(String id) {
+    setState(() {
+      if (_selected.contains(id)) {
+        _selected.remove(id);
+        if (_selected.isEmpty) _selectMode = false;
+      } else {
+        _selected.add(id);
+      }
+    });
+  }
+
+  Future<void> _deleteSelected(BuildContext context) async {
+    final l10n = ref.read(localeProvider);
+    final count = _selected.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deleteNoteTitle),
+        content: Text(l10n.deleteMultipleMessage(count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final ids = _selected.toList();
+      setState(() {
+        _selectMode = false;
+        _selected.clear();
+      });
+      await ref.read(notesListProvider.notifier).deleteMultipleNotes(ids);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.notesDeleted(count))),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSingle(BuildContext context, Note note) async {
+    final l10n = ref.read(localeProvider);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deleteNoteTitle),
+        content: Text(l10n.deleteNoteMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await ref.read(notesListProvider.notifier).deleteNote(note.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.noteDeleted)),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesListProvider);
     final l10n = ref.watch(localeProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.allNotes),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.go('/'),
-        ),
-      ),
+      appBar: _selectMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: _toggleSelectMode,
+              ),
+              title: Text(l10n.selectedCount(_selected.length)),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.delete_rounded),
+                  color: AppTheme.errorColor,
+                  tooltip: l10n.deleteSelected,
+                  onPressed: _selected.isEmpty
+                      ? null
+                      : () => _deleteSelected(context),
+                ),
+              ],
+            )
+          : AppBar(
+              title: Text(l10n.allNotes),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => context.go('/'),
+              ),
+              actions: [
+                if (notesAsync.valueOrNull?.isNotEmpty == true)
+                  IconButton(
+                    icon: const Icon(Icons.checklist_rounded),
+                    tooltip: l10n.selectNotes,
+                    onPressed: _toggleSelectMode,
+                  ),
+              ],
+            ),
       body: notesAsync.when(
         data: (notes) {
           if (notes.isEmpty) {
@@ -39,7 +159,42 @@ class NotesListScreen extends ConsumerWidget {
               separatorBuilder: (_, __) => const Gap(8),
               itemBuilder: (context, index) {
                 final note = notes[index];
-                return _NoteCard(note: note, l10n: l10n);
+                if (_selectMode) {
+                  return _SelectableNoteCard(
+                    note: note,
+                    l10n: l10n,
+                    selected: _selected.contains(note.id),
+                    onToggle: () => _toggleItem(note.id),
+                  );
+                }
+                return Dismissible(
+                  key: ValueKey(note.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 24),
+                    decoration: BoxDecoration(
+                      color: AppTheme.errorColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.delete_rounded,
+                        color: Colors.white, size: 28),
+                  ),
+                  confirmDismiss: (_) async {
+                    await _deleteSingle(context, note);
+                    return false;
+                  },
+                  child: _NoteCard(
+                    note: note,
+                    l10n: l10n,
+                    onLongPress: () {
+                      setState(() {
+                        _selectMode = true;
+                        _selected.add(note.id);
+                      });
+                    },
+                  ),
+                );
               },
             ),
           );
@@ -65,12 +220,14 @@ class NotesListScreen extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go('/'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.mic_rounded),
-      ),
+      floatingActionButton: _selectMode
+          ? null
+          : FloatingActionButton(
+              onPressed: () => context.go('/'),
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              child: const Icon(Icons.mic_rounded),
+            ),
     );
   }
 }
@@ -119,8 +276,9 @@ class _EmptyState extends StatelessWidget {
 class _NoteCard extends StatelessWidget {
   final Note note;
   final AppLocalizations l10n;
+  final VoidCallback? onLongPress;
 
-  const _NoteCard({required this.note, required this.l10n});
+  const _NoteCard({required this.note, required this.l10n, this.onLongPress});
 
   @override
   Widget build(BuildContext context) {
@@ -133,6 +291,7 @@ class _NoteCard extends StatelessWidget {
             context.push('/notes/${note.id}');
           }
         },
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -227,6 +386,70 @@ class _NoteCard extends StatelessWidget {
       default:
         return Icons.hourglass_top_rounded;
     }
+  }
+}
+
+class _SelectableNoteCard extends StatelessWidget {
+  final Note note;
+  final AppLocalizations l10n;
+  final bool selected;
+  final VoidCallback onToggle;
+
+  const _SelectableNoteCard({
+    required this.note,
+    required this.l10n,
+    required this.selected,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: selected
+          ? AppTheme.primaryColor.withValues(alpha: 0.08)
+          : null,
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Checkbox
+              Icon(
+                selected
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: selected
+                    ? AppTheme.primaryColor
+                    : AppTheme.textTertiary,
+                size: 28,
+              ),
+              const Gap(14),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      note.displayTitle,
+                      style: Theme.of(context).textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Gap(4),
+                    Text(
+                      timeago.format(note.createdAt, locale: 'en_short'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
