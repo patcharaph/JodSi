@@ -5,7 +5,7 @@ import '../../providers/service_providers.dart';
 import '../../providers/locale_provider.dart';
 import 'package:gap/gap.dart';
 
-class LinkAccountSheet extends ConsumerWidget {
+class LinkAccountSheet extends ConsumerStatefulWidget {
   const LinkAccountSheet({super.key});
 
   static Future<void> show(BuildContext context) {
@@ -18,7 +18,27 @@ class LinkAccountSheet extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LinkAccountSheet> createState() => _LinkAccountSheetState();
+}
+
+class _LinkAccountSheetState extends ConsumerState<LinkAccountSheet> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _showEmailForm = false;
+  bool _isLoading = false;
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = ref.read(localeProvider);
+
     return Container(
       decoration: const BoxDecoration(
         color: AppTheme.surfaceColor,
@@ -50,64 +70,177 @@ class LinkAccountSheet extends ConsumerWidget {
           ),
           const Gap(16),
           Text(
-            ref.read(localeProvider).linkAccountTitle,
+            l10n.linkAccountTitle,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const Gap(8),
           Text(
-            ref.read(localeProvider).linkAccountDesc,
+            l10n.linkAccountDesc,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const Gap(24),
 
-          // LINE Login
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _linkLine(context, ref),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF06C755),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+          if (_showEmailForm) ...[
+            // Email/Password form
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: l10n.emailLabel,
+                prefixIcon: const Icon(Icons.email_rounded),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                      color: AppTheme.primaryColor, width: 2),
+                ),
               ),
-              icon: const Icon(Icons.chat_bubble_rounded, size: 20),
-              label: Text(ref.read(localeProvider).loginWithLine),
             ),
-          ),
-          const Gap(12),
+            const Gap(12),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: l10n.passwordLabel,
+                prefixIcon: const Icon(Icons.lock_rounded),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                      color: AppTheme.primaryColor, width: 2),
+                ),
+              ),
+            ),
+            if (_errorText != null) ...[
+              const Gap(8),
+              Text(
+                _errorText!,
+                style: const TextStyle(
+                    color: AppTheme.errorColor, fontSize: 13),
+              ),
+            ],
+            const Gap(16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _signInWithEmail,
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(l10n.loginWithEmail),
+              ),
+            ),
+            const Gap(8),
+            TextButton(
+              onPressed: () => setState(() {
+                _showEmailForm = false;
+                _errorText = null;
+              }),
+              child: Text(l10n.back,
+                  style: const TextStyle(color: AppTheme.textTertiary)),
+            ),
+          ] else ...[
+            // Email Login button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => setState(() => _showEmailForm = true),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                icon: const Icon(Icons.email_rounded, size: 20),
+                label: Text(l10n.loginWithEmail),
+              ),
+            ),
+            const Gap(12),
 
-          // Google Sign-in
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => _linkGoogle(context, ref),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                side: const BorderSide(color: AppTheme.dividerColor),
-              ),
-              icon: const Icon(Icons.g_mobiledata_rounded,
-                  size: 24, color: AppTheme.textPrimary),
-              label: Text(
-                ref.read(localeProvider).loginWithGoogle,
-                style: TextStyle(color: AppTheme.textPrimary),
+            // LINE Login
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _linkLine(context, ref),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF06C755),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                icon: const Icon(Icons.chat_bubble_rounded, size: 20),
+                label: Text(l10n.loginWithLine),
               ),
             ),
-          ),
-          const Gap(12),
+            const Gap(12),
 
-          // Skip
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              ref.read(localeProvider).skipForNow,
-              style: const TextStyle(color: AppTheme.textTertiary),
+            // Google Sign-in
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _linkGoogle(context, ref),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: AppTheme.dividerColor),
+                ),
+                icon: const Icon(Icons.g_mobiledata_rounded,
+                    size: 24, color: AppTheme.textPrimary),
+                label: Text(
+                  l10n.loginWithGoogle,
+                  style: TextStyle(color: AppTheme.textPrimary),
+                ),
+              ),
             ),
-          ),
+            const Gap(12),
+
+            // Skip
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                l10n.skipForNow,
+                style: const TextStyle(color: AppTheme.textTertiary),
+              ),
+            ),
+          ],
           const Gap(8),
         ],
       ),
     );
+  }
+
+  Future<void> _signInWithEmail() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _errorText = ref.read(localeProvider).emailPasswordRequired);
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
+
+    try {
+      await ref.read(authServiceProvider).signInWithEmail(
+            email: email,
+            password: password,
+          );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorText = ref.read(localeProvider).emailLoginError(e.toString()));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _linkLine(BuildContext context, WidgetRef ref) async {

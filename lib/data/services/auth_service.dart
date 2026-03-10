@@ -23,6 +23,16 @@ class AuthService {
     }
   }
 
+  Future<AuthResponse> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    return await _client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+  }
+
   Future<AuthResponse> linkWithGoogle() async {
     // For mobile, use signInWithOAuth or signInWithIdToken
     // This is a placeholder — actual implementation depends on

@@ -117,6 +117,15 @@ class AppLocalizations {
   String get loginWithGoogle =>
       _t('เข้าสู่ระบบด้วย Google', 'Sign in with Google');
   String get skipForNow => _t('ข้ามไปก่อน', 'Skip for now');
+  String get loginWithEmail =>
+      _t('เข้าสู่ระบบด้วย Email', 'Sign in with Email');
+  String get emailLabel => _t('อีเมล', 'Email');
+  String get passwordLabel => _t('รหัสผ่าน', 'Password');
+  String get emailPasswordRequired =>
+      _t('กรุณากรอกอีเมลและรหัสผ่าน', 'Please enter email and password');
+  String emailLoginError(String e) =>
+      _t('เข้าสู่ระบบไม่สำเร็จ: $e', 'Sign in failed: $e');
+  String get back => _t('กลับ', 'Back');
   String lineLoginError(String e) =>
       _t('LINE Login ยังไม่พร้อมใช้งาน: $e', 'LINE Login not available: $e');
   String googleLoginError(String e) =>
