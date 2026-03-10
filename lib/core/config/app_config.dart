@@ -1,7 +1,7 @@
 abstract class AppConfig {
   static const String appName = 'JodSi';
   static const String appNameThai = 'จดสิ';
-  static const String appVersion = '2.1.0';
+  static const String appVersion = '2.2.0';
 
   // Supabase — replace with your project values
   static const String supabaseUrl = String.fromEnvironment(
