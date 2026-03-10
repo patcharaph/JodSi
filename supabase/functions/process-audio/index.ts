@@ -60,8 +60,8 @@ serve(async (req: Request) => {
 
     // Send audio to Deepgram with callback
     const deepgramUrl = new URL("https://api.deepgram.com/v1/listen");
-    deepgramUrl.searchParams.set("model", "nova-2");
-    deepgramUrl.searchParams.set("language", "th");
+    deepgramUrl.searchParams.set("model", "nova-3");
+    deepgramUrl.searchParams.set("detect_language", "true");
     deepgramUrl.searchParams.set("punctuate", "true");
     deepgramUrl.searchParams.set("paragraphs", "true");
     deepgramUrl.searchParams.set("utterances", "true");

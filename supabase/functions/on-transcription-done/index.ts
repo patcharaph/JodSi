@@ -13,23 +13,22 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `คุณคือผู้ช่วยสรุปโน้ตภาษาไทย กรุณาสรุปข้อความถอดเสียงเป็น JSON ตาม schema นี้:
+const SYSTEM_PROMPT = `You are a smart note summarizer. Summarize the transcript into JSON with this schema:
 
 {
-  "title": "ชื่อโน้ตสั้นๆ ภาษาไทย (ไม่เกิน 50 ตัวอักษร)",
-  "key_takeaways": ["ประเด็นสำคัญ 1", "ประเด็นสำคัญ 2", "..."],
-  "detail": "รายละเอียดเพิ่มเติมเป็นย่อหน้าภาษาไทย",
-  "action_items": ["สิ่งที่ต้องทำ 1", "สิ่งที่ต้องทำ 2", "..."]
+  "title": "Short note title (max 50 chars)",
+  "key_takeaways": ["Key point 1", "Key point 2", "..."],
+  "detail": "Detailed summary in 2-4 sentences",
+  "action_items": ["Action 1", "Action 2", "..."]
 }
 
-กฎ:
-- ตอบเป็น JSON เท่านั้น ห้ามมี markdown
-- key_takeaways: 3-7 ข้อ จับประเด็นหลัก
-- detail: สรุปรายละเอียดเป็นย่อหน้า 2-4 ประโยค
-- action_items: สิ่งที่ต้องทำ (ถ้ามี) ถ้าไม่มีให้ใส่ array ว่าง
-- ใช้ภาษาไทยทั้งหมด (ยกเว้นคำศัพท์เทคนิค)
-
-ตอบเป็น JSON เท่านั้น ห้ามครอบด้วย markdown code block`;
+Rules:
+- Respond with JSON ONLY, no markdown wrapping
+- key_takeaways: 3-7 key points
+- detail: summary paragraph 2-4 sentences
+- action_items: things to do (if any), empty array if none
+- IMPORTANT: Reply in the SAME language as the transcript. If transcript is Thai, reply in Thai. If English, reply in English. If mixed, use the dominant language.
+- Respond with JSON ONLY, no markdown code block`;
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -199,7 +198,7 @@ serve(async (req: Request) => {
         model: OPENROUTER_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `ข้อความถอดเสียง:\n${fullText}` },
+          { role: "user", content: `Transcript:\n${fullText}` },
         ],
         temperature: 0.3,
         top_p: 0.8,
