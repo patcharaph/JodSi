@@ -18,17 +18,36 @@ serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  let noteId: string | null = null;
+  let userId: string | null = null;
+
   try {
     const { note_id, audio_url } = await req.json();
+    noteId = note_id;
 
     if (!note_id || !audio_url) {
+      await logApiCall(supabase, {
+        functionName: "process-audio",
+        noteId: null, userId: null,
+        status: "error", statusCode: 400,
+        errorMessage: "note_id and audio_url are required",
+        durationMs: Date.now() - startTime,
+      });
       return new Response(
         JSON.stringify({ error: "note_id and audio_url are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Fetch note to get user_id for logging
+    const { data: noteData } = await supabase
+      .from("notes")
+      .select("user_id")
+      .eq("id", note_id)
+      .maybeSingle();
+    userId = noteData?.user_id || null;
 
     // Update note status to transcribing
     await supabase
@@ -67,6 +86,14 @@ serve(async (req: Request) => {
         .update({ status: "error" })
         .eq("id", note_id);
 
+      await logApiCall(supabase, {
+        functionName: "process-audio",
+        noteId: note_id, userId,
+        status: "error", statusCode: deepgramResponse.status,
+        errorMessage: `Deepgram: ${errorText}`,
+        durationMs: Date.now() - startTime,
+      });
+
       return new Response(
         JSON.stringify({ error: "Deepgram request failed", details: errorText }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -76,15 +103,66 @@ serve(async (req: Request) => {
     const deepgramResult = await deepgramResponse.json();
     console.log("Deepgram callback registered:", deepgramResult);
 
+    await logApiCall(supabase, {
+      functionName: "process-audio",
+      noteId: note_id, userId,
+      status: "ok", statusCode: 200,
+      durationMs: Date.now() - startTime,
+    });
+
     return new Response(
       JSON.stringify({ success: true, note_id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
-    console.error("Error in process-audio:", error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("Error in process-audio:", errMsg);
+
+    await logApiCall(supabase, {
+      functionName: "process-audio",
+      noteId, userId,
+      status: "error", statusCode: 500,
+      errorMessage: errMsg,
+      durationMs: Date.now() - startTime,
+    }).catch(() => {});
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errMsg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
+
+// ─── Logging Helper ───────────────────────────────────────
+interface LogParams {
+  functionName: string;
+  noteId: string | null;
+  userId: string | null;
+  status: string;
+  statusCode: number;
+  errorMessage?: string;
+  deepgramCost?: number;
+  durationMs: number;
+  audioDurationSec?: number;
+  requestMeta?: Record<string, unknown>;
+}
+
+async function logApiCall(supabase: ReturnType<typeof createClient>, params: LogParams) {
+  try {
+    await supabase.from("api_logs").insert({
+      function_name: params.functionName,
+      note_id: params.noteId,
+      user_id: params.userId,
+      status: params.status,
+      status_code: params.statusCode,
+      error_message: params.errorMessage || null,
+      deepgram_cost: params.deepgramCost || 0,
+      total_cost: params.deepgramCost || 0,
+      duration_ms: params.durationMs,
+      audio_duration_sec: params.audioDurationSec || null,
+      request_meta: params.requestMeta || null,
+    });
+  } catch (e) {
+    console.error("Failed to log API call:", e);
+  }
+}

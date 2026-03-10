@@ -22,3 +22,11 @@ final audioRecordingServiceProvider = Provider<AudioRecordingService>((ref) {
   ref.onDispose(() => service.dispose());
   return service;
 });
+
+final adminServiceProvider = Provider<AdminService>((ref) {
+  return AdminService();
+});
+
+final feedbackServiceProvider = Provider<FeedbackService>((ref) {
+  return FeedbackService();
+});

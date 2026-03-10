@@ -36,14 +36,26 @@ serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  let noteId: string | null = null;
+  let userId: string | null = null;
+
   try {
     // Get note_id from query params (set by process-audio callback URL)
     const url = new URL(req.url);
-    const noteId = url.searchParams.get("note_id");
+    noteId = url.searchParams.get("note_id");
 
     const secret = url.searchParams.get("secret");
 
     if (!noteId || !secret) {
+      await logApiCall(supabase, {
+        functionName: "on-transcription-done",
+        noteId: null, userId: null,
+        status: "error", statusCode: 400,
+        errorMessage: "note_id and secret query params are required",
+        durationMs: Date.now() - startTime,
+      });
       return new Response(
         JSON.stringify({ error: "note_id and secret query params are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -53,23 +65,49 @@ serve(async (req: Request) => {
     // Verify webhook secret to prevent unauthorized calls
     if (secret !== WEBHOOK_SECRET) {
       console.error("Invalid webhook secret for note:", noteId);
+      await logApiCall(supabase, {
+        functionName: "on-transcription-done",
+        noteId, userId: null,
+        status: "error", statusCode: 401,
+        errorMessage: "Invalid webhook secret",
+        durationMs: Date.now() - startTime,
+      });
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Fetch note to get user_id for logging
+    const { data: noteData } = await supabase
+      .from("notes")
+      .select("user_id, duration_sec")
+      .eq("id", noteId)
+      .maybeSingle();
+    userId = noteData?.user_id || null;
+    const audioDurationSec = noteData?.duration_sec || null;
+
     // Parse Deepgram webhook payload
     const deepgramResult = await req.json();
     console.log("Deepgram callback received for note:", noteId);
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Extract Deepgram cost from metadata
+    const deepgramCost = deepgramResult?.metadata?.billing_info?.total_amount || 0;
 
     // Extract transcript data from Deepgram response
     const channels = deepgramResult?.results?.channels;
     if (!channels || channels.length === 0) {
       console.error("No channels in Deepgram response");
       await supabase.from("notes").update({ status: "error" }).eq("id", noteId);
+      await logApiCall(supabase, {
+        functionName: "on-transcription-done",
+        noteId, userId,
+        status: "error", statusCode: 400,
+        errorMessage: "No transcription channels in Deepgram response",
+        deepgramCost,
+        durationMs: Date.now() - startTime,
+        audioDurationSec,
+      });
       return new Response(
         JSON.stringify({ error: "No transcription channels" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -129,6 +167,18 @@ serve(async (req: Request) => {
         .from("notes")
         .update({ status: "done", title: "โน้ตเปล่า" })
         .eq("id", noteId);
+
+      await logApiCall(supabase, {
+        functionName: "on-transcription-done",
+        noteId, userId,
+        status: "ok", statusCode: 200,
+        deepgramCost, openrouterCost: 0,
+        durationMs: Date.now() - startTime,
+        audioDurationSec,
+        transcriptChars: 0,
+        modelUsed: "none (empty transcript)",
+      });
+
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -162,6 +212,19 @@ serve(async (req: Request) => {
       const errorText = await openrouterResponse.text();
       console.error("OpenRouter error:", errorText);
       await supabase.from("notes").update({ status: "error" }).eq("id", noteId);
+
+      await logApiCall(supabase, {
+        functionName: "on-transcription-done",
+        noteId, userId,
+        status: "error", statusCode: openrouterResponse.status,
+        errorMessage: `OpenRouter: ${errorText}`,
+        deepgramCost, openrouterCost: 0,
+        durationMs: Date.now() - startTime,
+        audioDurationSec,
+        transcriptChars: fullText.length,
+        modelUsed: OPENROUTER_MODEL,
+      });
+
       return new Response(
         JSON.stringify({ error: "OpenRouter request failed", details: errorText }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -171,6 +234,9 @@ serve(async (req: Request) => {
     const openrouterResult = await openrouterResponse.json();
     const generatedText =
       openrouterResult?.choices?.[0]?.message?.content || "{}";
+
+    // Extract OpenRouter cost from usage
+    const openrouterCost = openrouterResult?.usage?.total_cost || 0;
 
     let summary;
     try {
@@ -204,15 +270,78 @@ serve(async (req: Request) => {
 
     console.log("Processing complete for note:", noteId);
 
+    await logApiCall(supabase, {
+      functionName: "on-transcription-done",
+      noteId, userId,
+      status: "ok", statusCode: 200,
+      deepgramCost,
+      openrouterCost,
+      durationMs: Date.now() - startTime,
+      audioDurationSec,
+      transcriptChars: fullText.length,
+      modelUsed: OPENROUTER_MODEL,
+    });
+
     return new Response(JSON.stringify({ success: true, note_id: noteId }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
-    console.error("Error in on-transcription-done:", error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("Error in on-transcription-done:", errMsg);
+
+    await logApiCall(supabase, {
+      functionName: "on-transcription-done",
+      noteId, userId,
+      status: "error", statusCode: 500,
+      errorMessage: errMsg,
+      durationMs: Date.now() - startTime,
+    }).catch(() => {});
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errMsg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
+
+// ─── Logging Helper ───────────────────────────────────────
+interface LogParams {
+  functionName: string;
+  noteId: string | null;
+  userId: string | null;
+  status: string;
+  statusCode: number;
+  errorMessage?: string;
+  deepgramCost?: number;
+  openrouterCost?: number;
+  durationMs: number;
+  audioDurationSec?: number | null;
+  transcriptChars?: number;
+  modelUsed?: string;
+  requestMeta?: Record<string, unknown>;
+}
+
+async function logApiCall(supabase: ReturnType<typeof createClient>, params: LogParams) {
+  try {
+    const totalCost = (params.deepgramCost || 0) + (params.openrouterCost || 0);
+    await supabase.from("api_logs").insert({
+      function_name: params.functionName,
+      note_id: params.noteId,
+      user_id: params.userId,
+      status: params.status,
+      status_code: params.statusCode,
+      error_message: params.errorMessage || null,
+      deepgram_cost: params.deepgramCost || 0,
+      openrouter_cost: params.openrouterCost || 0,
+      total_cost: totalCost,
+      duration_ms: params.durationMs,
+      audio_duration_sec: params.audioDurationSec || null,
+      transcript_chars: params.transcriptChars || null,
+      model_used: params.modelUsed || null,
+      request_meta: params.requestMeta || null,
+    });
+  } catch (e) {
+    console.error("Failed to log API call:", e);
+  }
+}

@@ -5,6 +5,7 @@ import '../../ui/screens/processing_screen.dart';
 import '../../ui/screens/note_detail_screen.dart';
 import '../../ui/screens/notes_list_screen.dart';
 import '../../ui/screens/settings_screen.dart';
+import '../../ui/screens/admin_dashboard_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -34,6 +35,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/admin',
+      builder: (context, state) => const AdminDashboardScreen(),
     ),
   ],
   errorBuilder: (context, state) => Scaffold(

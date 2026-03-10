@@ -123,6 +123,19 @@ class AppLocalizations {
       _t('Google Login ยังไม่พร้อมใช้งาน: $e',
           'Google Login not available: $e');
 
+  // ─── Feedback ────────────────────────────────────────
+  String get feedbackTitle => _t('ส่งความคิดเห็น', 'Send Feedback');
+  String get feedbackDesc =>
+      _t('ช่วยเราพัฒนาแอปให้ดียิ่งขึ้น', 'Help us improve the app');
+  String get feedbackRating => _t('ให้คะแนน', 'Rate');
+  String get feedbackHint =>
+      _t('เขียนความคิดเห็น...', 'Write your feedback...');
+  String get feedbackSubmit => _t('ส่ง', 'Submit');
+  String get feedbackThanks =>
+      _t('ขอบคุณสำหรับความคิดเห็น!', 'Thanks for your feedback!');
+  String get feedback => _t('ส่ง Feedback', 'Send Feedback');
+  String get adminDashboard => _t('Admin Dashboard', 'Admin Dashboard');
+
   // ─── Model fallbacks ──────────────────────────────
   String get untitledNote => _t('โน้ตไม่มีชื่อ', 'Untitled Note');
 

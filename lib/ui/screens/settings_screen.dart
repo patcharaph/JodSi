@@ -6,6 +6,7 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/providers.dart';
 import '../widgets/link_account_sheet.dart';
+import '../widgets/feedback_sheet.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -184,6 +185,18 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () {
                     ref.read(localeProvider.notifier).toggle();
                   },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.feedback_rounded),
+                  title: Text(ref.read(localeProvider).feedback),
+                  onTap: () => FeedbackSheet.show(context),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.admin_panel_settings_rounded),
+                  title: Text(ref.read(localeProvider).adminDashboard),
+                  onTap: () => context.push('/admin'),
                 ),
                 const Divider(height: 1),
                 ListTile(
