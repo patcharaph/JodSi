@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -109,22 +110,43 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
       _timer?.cancel();
       _timer = null;
 
+      dev.log('[JodSi] stopRecording: stopping recorder...');
       final result = await _recorder.stop();
+      dev.log('[JodSi] stopRecording: stopped, file=${result.filePath}, duration=${result.durationSec}s');
+
+      // Check file exists
+      final audioFile = File(result.filePath);
+      final fileExists = await audioFile.exists();
+      final fileSize = fileExists ? await audioFile.length() : 0;
+      dev.log('[JodSi] stopRecording: fileExists=$fileExists, size=$fileSize bytes');
+
+      if (!fileExists || fileSize == 0) {
+        dev.log('[JodSi] stopRecording: ERROR - audio file missing or empty!');
+        state = state.copyWith(
+          state: RecordingState.idle,
+          errorMessage: 'Audio file missing or empty',
+        );
+        return null;
+      }
 
       state = state.copyWith(state: RecordingState.uploading);
 
       // Create note in DB
+      dev.log('[JodSi] stopRecording: creating note in DB...');
       final notesNotifier = _ref.read(notesListProvider.notifier);
       final note = await notesNotifier.createNote();
+      dev.log('[JodSi] stopRecording: note created id=${note.id}');
 
       state = state.copyWith(noteId: note.id);
 
       // Upload audio
+      dev.log('[JodSi] stopRecording: uploading audio to storage...');
       final storageService = _ref.read(storageServiceProvider);
       final audioUrl = await storageService.uploadAudio(
         filePath: result.filePath,
         noteId: note.id,
       );
+      dev.log('[JodSi] stopRecording: uploaded, url=$audioUrl');
 
       // Clean up local audio file after successful upload
       try {
@@ -137,6 +159,7 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
       }
 
       // Update note with audio URL and duration
+      dev.log('[JodSi] stopRecording: updating note status to transcribing...');
       final dbService = _ref.read(databaseServiceProvider);
       await dbService.updateNote(note.id, {
         'audio_url': audioUrl,
@@ -144,21 +167,25 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
         'status': NoteStatus.transcribing.name,
         'bookmarks': state.bookmarks.map((b) => b.toJson()).toList(),
       });
+      dev.log('[JodSi] stopRecording: note updated to transcribing');
 
       state = state.copyWith(state: RecordingState.processing);
 
       // Trigger processing pipeline
+      dev.log('[JodSi] stopRecording: calling process-audio edge function...');
       final processingService = _ref.read(processingServiceProvider);
       await processingService.processAudio(
         noteId: note.id,
         audioUrl: audioUrl,
       );
+      dev.log('[JodSi] stopRecording: process-audio call succeeded');
 
       // Increment recording count for soft prompt
       await _incrementRecordingCount();
 
       return note.id;
-    } catch (e) {
+    } catch (e, stack) {
+      dev.log('[JodSi] stopRecording ERROR: $e\n$stack');
       state = state.copyWith(
         state: RecordingState.idle,
         errorMessage: e.toString(),

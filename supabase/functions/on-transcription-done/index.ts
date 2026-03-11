@@ -87,14 +87,21 @@ serve(async (req: Request) => {
     const audioDurationSec = noteData?.duration_sec || null;
 
     // Parse Deepgram webhook payload
-    const deepgramResult = await req.json();
+    const rawBody = await req.text();
+    console.log("[DEBUG] raw body length:", rawBody.length);
+    console.log("[DEBUG] raw body preview:", rawBody.substring(0, 2000));
+    const deepgramResult = JSON.parse(rawBody);
     console.log("Deepgram callback received for note:", noteId);
 
     // Extract Deepgram cost from metadata
     const deepgramCost = deepgramResult?.metadata?.billing_info?.total_amount || 0;
+    console.log("[DEBUG] deepgramCost:", deepgramCost);
+    console.log("[DEBUG] deepgramResult keys:", Object.keys(deepgramResult || {}));
+    console.log("[DEBUG] results keys:", Object.keys(deepgramResult?.results || {}));
 
     // Extract transcript data from Deepgram response
     const channels = deepgramResult?.results?.channels;
+    console.log("[DEBUG] channels count:", channels?.length || 0);
     if (!channels || channels.length === 0) {
       console.error("No channels in Deepgram response");
       await supabase.from("notes").update({ status: "error" }).eq("id", noteId);
@@ -116,6 +123,8 @@ serve(async (req: Request) => {
     const alternative = channels[0].alternatives[0];
     const fullText = alternative.transcript || "";
     const paragraphs = alternative.paragraphs?.paragraphs || [];
+    console.log("[DEBUG] fullText length:", fullText.length);
+    console.log("[DEBUG] fullText preview:", fullText.substring(0, 200));
 
     // Build segments from paragraphs/utterances
     const segments: Array<{ start: number; end: number; text: string }> = [];
@@ -140,13 +149,21 @@ serve(async (req: Request) => {
       }
     }
 
+    console.log("[DEBUG] segments count:", segments.length);
+
     // Save transcript to DB
-    await supabase.from("transcripts").insert({
+    console.log("[DEBUG] inserting transcript...");
+    const { error: transcriptError } = await supabase.from("transcripts").insert({
       note_id: noteId,
       segments: segments,
       full_text: fullText,
       raw_response: deepgramResult,
     });
+    if (transcriptError) {
+      console.error("[DEBUG] transcript insert error:", JSON.stringify(transcriptError));
+    } else {
+      console.log("[DEBUG] transcript inserted OK");
+    }
 
     // Update note status to summarizing
     await supabase
@@ -154,18 +171,23 @@ serve(async (req: Request) => {
       .update({ status: "summarizing" })
       .eq("id", noteId);
 
+    console.log("[DEBUG] note status updated to summarizing");
+
     // Skip summarization if transcript is empty
     if (!fullText || fullText.trim().length === 0) {
-      await supabase.from("summaries").insert({
+      console.log("[DEBUG] empty transcript — inserting empty summary...");
+      const { error: sumErr } = await supabase.from("summaries").insert({
         note_id: noteId,
         key_takeaways: [],
         detail: "ไม่พบเนื้อหาจากเสียง",
         action_items: [],
       });
-      await supabase
+      console.log("[DEBUG] empty summary insert:", sumErr ? JSON.stringify(sumErr) : "OK");
+      const { error: noteErr } = await supabase
         .from("notes")
         .update({ status: "done", title: "โน้ตเปล่า" })
         .eq("id", noteId);
+      console.log("[DEBUG] note update to done:", noteErr ? JSON.stringify(noteErr) : "OK");
 
       await logApiCall(supabase, {
         functionName: "on-transcription-done",
@@ -186,6 +208,7 @@ serve(async (req: Request) => {
 
     // ─── OpenRouter LLM Summarization ─────────────────
 
+    console.log("[DEBUG] calling OpenRouter with model:", OPENROUTER_MODEL);
     const openrouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -230,6 +253,7 @@ serve(async (req: Request) => {
       );
     }
 
+    console.log("[DEBUG] OpenRouter response OK, parsing...");
     const openrouterResult = await openrouterResponse.json();
     const generatedText =
       openrouterResult?.choices?.[0]?.message?.content || "{}";

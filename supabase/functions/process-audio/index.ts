@@ -55,10 +55,29 @@ serve(async (req: Request) => {
       .update({ status: "transcribing" })
       .eq("id", note_id);
 
-    // Build Deepgram callback URL
-    const callbackUrl = `${SUPABASE_URL}/functions/v1/on-transcription-done?note_id=${note_id}&secret=${WEBHOOK_SECRET}`;
+    // Fetch audio binary from Supabase Storage
+    console.log("[DEBUG] Fetching audio from:", audio_url);
+    const audioResponse = await fetch(audio_url);
+    if (!audioResponse.ok) {
+      const errText = await audioResponse.text();
+      console.error("[DEBUG] Failed to fetch audio:", audioResponse.status, errText);
+      await supabase.from("notes").update({ status: "error" }).eq("id", note_id);
+      await logApiCall(supabase, {
+        functionName: "process-audio",
+        noteId: note_id, userId,
+        status: "error", statusCode: audioResponse.status,
+        errorMessage: `Failed to fetch audio: ${errText}`,
+        durationMs: Date.now() - startTime,
+      });
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch audio" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const audioBuffer = await audioResponse.arrayBuffer();
+    console.log("[DEBUG] Audio fetched, size:", audioBuffer.byteLength, "bytes");
 
-    // Send audio to Deepgram with callback
+    // Send audio binary directly to Deepgram (synchronous — no callback)
     const deepgramUrl = new URL("https://api.deepgram.com/v1/listen");
     deepgramUrl.searchParams.set("model", "nova-3");
     deepgramUrl.searchParams.set("detect_language", "true");
@@ -66,15 +85,15 @@ serve(async (req: Request) => {
     deepgramUrl.searchParams.set("paragraphs", "true");
     deepgramUrl.searchParams.set("utterances", "true");
     deepgramUrl.searchParams.set("smart_format", "true");
-    deepgramUrl.searchParams.set("callback", callbackUrl);
 
+    console.log("[DEBUG] Sending audio to Deepgram (sync mode)...");
     const deepgramResponse = await fetch(deepgramUrl.toString(), {
       method: "POST",
       headers: {
         Authorization: `Token ${DEEPGRAM_API_KEY}`,
-        "Content-Type": "application/json",
+        "Content-Type": "audio/mp4",
       },
-      body: JSON.stringify({ url: audio_url }),
+      body: audioBuffer,
     });
 
     if (!deepgramResponse.ok) {
@@ -101,7 +120,19 @@ serve(async (req: Request) => {
     }
 
     const deepgramResult = await deepgramResponse.json();
-    console.log("Deepgram callback registered:", deepgramResult);
+    const transcript = deepgramResult?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
+    console.log("[DEBUG] Deepgram sync result, transcript length:", transcript.length);
+    console.log("[DEBUG] Deepgram transcript preview:", transcript.substring(0, 200));
+
+    // Forward result to on-transcription-done
+    const callbackUrl = `${SUPABASE_URL}/functions/v1/on-transcription-done?note_id=${note_id}&secret=${WEBHOOK_SECRET}`;
+    console.log("[DEBUG] Forwarding to on-transcription-done...");
+    const callbackResponse = await fetch(callbackUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(deepgramResult),
+    });
+    console.log("[DEBUG] on-transcription-done response:", callbackResponse.status);
 
     await logApiCall(supabase, {
       functionName: "process-audio",
