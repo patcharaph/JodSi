@@ -91,9 +91,9 @@ serve(async (req: Request) => {
       method: "POST",
       headers: {
         Authorization: `Token ${DEEPGRAM_API_KEY}`,
-        "Content-Type": "audio/mp4",
+        "Content-Type": "audio/wav",
       },
-      body: audioBuffer,
+      body: new Uint8Array(audioBuffer),
     });
 
     if (!deepgramResponse.ok) {
@@ -120,6 +120,16 @@ serve(async (req: Request) => {
     }
 
     const deepgramResult = await deepgramResponse.json();
+    console.log("[DEBUG] Deepgram response metadata:", JSON.stringify(deepgramResult?.metadata || {}).substring(0, 500));
+    console.log("[DEBUG] Deepgram model_info:", JSON.stringify(deepgramResult?.metadata?.model_info || {}));
+    const channels = deepgramResult?.results?.channels;
+    if (channels && channels.length > 0) {
+      const alt = channels[0].alternatives[0];
+      console.log("[DEBUG] detected_language:", channels[0].detected_language);
+      console.log("[DEBUG] language_confidence:", channels[0].language_confidence);
+      console.log("[DEBUG] transcript confidence:", alt?.confidence);
+      console.log("[DEBUG] words count:", alt?.words?.length || 0);
+    }
     const transcript = deepgramResult?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
     console.log("[DEBUG] Deepgram sync result, transcript length:", transcript.length);
     console.log("[DEBUG] Deepgram transcript preview:", transcript.substring(0, 200));

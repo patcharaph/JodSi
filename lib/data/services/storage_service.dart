@@ -12,13 +12,13 @@ class StorageService {
     required String noteId,
   }) async {
     final file = File(filePath);
-    final storagePath = '$noteId/audio.m4a';
+    final storagePath = '$noteId/audio.wav';
 
     await _client.storage.from(AppConfig.audioBucket).upload(
           storagePath,
           file,
           fileOptions: const FileOptions(
-            contentType: 'audio/mp4',
+            contentType: 'audio/wav',
             upsert: true,
           ),
         );
@@ -31,7 +31,7 @@ class StorageService {
   }
 
   Future<void> deleteAudio(String noteId) async {
-    final storagePath = '$noteId/audio.m4a';
+    final storagePath = '$noteId/audio.wav';
     await _client.storage.from(AppConfig.audioBucket).remove([storagePath]);
   }
 }
