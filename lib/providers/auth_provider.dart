@@ -22,6 +22,7 @@ final isAnonymousProvider = Provider<bool>((ref) {
 });
 
 final isAdminProvider = Provider<bool>((ref) {
+  ref.watch(authStateProvider);
   final authService = ref.watch(authServiceProvider);
   final email = authService.currentUser?.email;
   if (email == null) return false;
