@@ -22,12 +22,13 @@ class AudioRecordingService {
   Future<String> start() async {
     final dir = await getApplicationDocumentsDirectory();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    _currentPath = p.join(dir.path, 'recording_$timestamp.wav');
+    _currentPath = p.join(dir.path, 'recording_$timestamp.m4a');
 
     await _recorder.start(
       const RecordConfig(
-        encoder: AudioEncoder.wav,
-        sampleRate: 16000,
+        encoder: AudioEncoder.aacLc,
+        bitRate: 128000,
+        sampleRate: 44100,
         numChannels: 1,
       ),
       path: _currentPath!,

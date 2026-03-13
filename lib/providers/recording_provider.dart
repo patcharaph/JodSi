@@ -114,11 +114,24 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
       final result = await _recorder.stop();
       dev.log('[JodSi] stopRecording: stopped, file=${result.filePath}, duration=${result.durationSec}s');
 
+      // Wait for file system to flush
+      await Future.delayed(const Duration(milliseconds: 500));
+
       // Check file exists
       final audioFile = File(result.filePath);
       final fileExists = await audioFile.exists();
       final fileSize = fileExists ? await audioFile.length() : 0;
       dev.log('[JodSi] stopRecording: fileExists=$fileExists, size=$fileSize bytes');
+
+      // Log first 16 bytes of audio file to verify content
+      if (fileExists && fileSize > 16) {
+        final bytes = await audioFile.openRead(0, 16).fold<List<int>>(
+          [],
+          (prev, chunk) => prev..addAll(chunk),
+        );
+        final hexStr = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+        dev.log('[JodSi] stopRecording: audio header (first 16 bytes): $hexStr');
+      }
 
       if (!fileExists || fileSize == 0) {
         dev.log('[JodSi] stopRecording: ERROR - audio file missing or empty!');

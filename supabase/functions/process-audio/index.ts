@@ -86,12 +86,16 @@ serve(async (req: Request) => {
     deepgramUrl.searchParams.set("utterances", "true");
     deepgramUrl.searchParams.set("smart_format", "true");
 
+    // Log first 8 bytes to verify audio format
+    const headerBytes = new Uint8Array(audioBuffer.slice(0, 8));
+    const headerHex = Array.from(headerBytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+    console.log("[DEBUG] Audio header (first 8 bytes):", headerHex);
+
     console.log("[DEBUG] Sending audio to Deepgram (sync mode)...");
     const deepgramResponse = await fetch(deepgramUrl.toString(), {
       method: "POST",
       headers: {
         Authorization: `Token ${DEEPGRAM_API_KEY}`,
-        "Content-Type": "audio/wav",
       },
       body: new Uint8Array(audioBuffer),
     });
