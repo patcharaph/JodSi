@@ -55,49 +55,25 @@ serve(async (req: Request) => {
       .update({ status: "transcribing" })
       .eq("id", note_id);
 
-    // Fetch audio binary from Supabase Storage
-    console.log("[DEBUG] Fetching audio from:", audio_url);
-    const audioResponse = await fetch(audio_url);
-    if (!audioResponse.ok) {
-      const errText = await audioResponse.text();
-      console.error("[DEBUG] Failed to fetch audio:", audioResponse.status, errText);
-      await supabase.from("notes").update({ status: "error" }).eq("id", note_id);
-      await logApiCall(supabase, {
-        functionName: "process-audio",
-        noteId: note_id, userId,
-        status: "error", statusCode: audioResponse.status,
-        errorMessage: `Failed to fetch audio: ${errText}`,
-        durationMs: Date.now() - startTime,
-      });
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch audio" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    const audioBuffer = await audioResponse.arrayBuffer();
-    console.log("[DEBUG] Audio fetched, size:", audioBuffer.byteLength, "bytes");
+    // Send audio URL to Deepgram (URL mode — let Deepgram fetch the file)
+    console.log("[DEBUG] Audio URL for Deepgram:", audio_url);
 
-    // Send audio binary directly to Deepgram (synchronous — no callback)
     const deepgramUrl = new URL("https://api.deepgram.com/v1/listen");
-    deepgramUrl.searchParams.set("model", "nova-3");
-    deepgramUrl.searchParams.set("detect_language", "true");
+    deepgramUrl.searchParams.set("model", "nova-2");
+    deepgramUrl.searchParams.set("language", "th");
     deepgramUrl.searchParams.set("punctuate", "true");
     deepgramUrl.searchParams.set("paragraphs", "true");
     deepgramUrl.searchParams.set("utterances", "true");
     deepgramUrl.searchParams.set("smart_format", "true");
 
-    // Log first 8 bytes to verify audio format
-    const headerBytes = new Uint8Array(audioBuffer.slice(0, 8));
-    const headerHex = Array.from(headerBytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
-    console.log("[DEBUG] Audio header (first 8 bytes):", headerHex);
-
-    console.log("[DEBUG] Sending audio to Deepgram (sync mode)...");
+    console.log("[DEBUG] Sending URL to Deepgram (sync URL mode)...");
     const deepgramResponse = await fetch(deepgramUrl.toString(), {
       method: "POST",
       headers: {
         Authorization: `Token ${DEEPGRAM_API_KEY}`,
+        "Content-Type": "application/json",
       },
-      body: new Uint8Array(audioBuffer),
+      body: JSON.stringify({ url: audio_url }),
     });
 
     if (!deepgramResponse.ok) {

@@ -30,6 +30,12 @@ class AudioRecordingService {
         bitRate: 128000,
         sampleRate: 44100,
         numChannels: 1,
+        autoGain: true,
+        echoCancel: true,
+        noiseSuppress: true,
+        androidConfig: AndroidRecordConfig(
+          audioSource: AndroidAudioSource.voiceRecognition,
+        ),
       ),
       path: _currentPath!,
     );
