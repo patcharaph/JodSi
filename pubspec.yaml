@@ -1,7 +1,7 @@
 name: jodsi
 description: "AI Voice-to-Note สำหรับคนไทย — อัดเสียง ได้โน้ตสรุปสวยๆ"
 publish_to: 'none'
-version: 2.3.3+7
+version: 2.3.4+8
 
 environment:
   sdk: ^3.10.8
