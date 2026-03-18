@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
-const OPENROUTER_MODEL = Deno.env.get("OPENROUTER_MODEL") || "google/gemini-flash-1.5";
+const OPENROUTER_MODEL = Deno.env.get("OPENROUTER_MODEL") || "google/gemini-2.0-flash-001";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY")!;
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET")!;
@@ -86,12 +86,19 @@ serve(async (req: Request) => {
     userId = noteData?.user_id || null;
     const audioDurationSec = noteData?.duration_sec || null;
 
-    // Parse Deepgram webhook payload
+    // Parse Deepgram result payload (forwarded from process-audio)
     const rawBody = await req.text();
     console.log("[DEBUG] raw body length:", rawBody.length);
     console.log("[DEBUG] raw body preview:", rawBody.substring(0, 2000));
-    const deepgramResult = JSON.parse(rawBody);
-    console.log("Deepgram callback received for note:", noteId);
+    let deepgramResult;
+    try {
+      deepgramResult = JSON.parse(rawBody);
+    } catch (parseErr) {
+      console.error("[DEBUG] JSON parse error:", parseErr);
+      throw new Error(`Failed to parse body: ${parseErr}`);
+    }
+    console.log("Deepgram result received for note:", noteId);
+    console.log("[DEBUG] deepgramResult top-level keys:", Object.keys(deepgramResult || {}));
 
     // Extract Deepgram cost from metadata
     const deepgramCost = deepgramResult?.metadata?.billing_info?.total_amount || 0;
