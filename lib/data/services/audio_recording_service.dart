@@ -62,18 +62,23 @@ class AudioRecordingService {
         _fileSink!.add(data);
         _bytesWritten += data.length;
 
-        // Calculate amplitude from PCM data for waveform
+        // Calculate RMS amplitude from PCM data for waveform UI
         if (data.length >= 2) {
-          double maxAmp = 0;
+          double sumSquares = 0;
+          int sampleCount = 0;
           final byteData = Uint8List.fromList(data);
           for (int i = 0; i < byteData.length - 1; i += 2) {
-            final sample =
-                byteData[i] | (byteData[i + 1] << 8);
+            final sample = byteData[i] | (byteData[i + 1] << 8);
             final signed = sample > 32767 ? sample - 65536 : sample;
-            maxAmp = max(maxAmp, signed.abs().toDouble());
+            sumSquares += signed * signed;
+            sampleCount++;
           }
-          final normalized = (maxAmp / 32768.0).clamp(0.0, 1.0);
-          _amplitudeController.add(normalized);
+          if (sampleCount > 0) {
+            final rms = sqrt(sumSquares / sampleCount);
+            // Apply gain (10x) so typical speech shows visible waveform
+            final normalized = (rms / 32768.0 * 10.0).clamp(0.0, 1.0);
+            _amplitudeController.add(normalized);
+          }
         }
       }
     });
