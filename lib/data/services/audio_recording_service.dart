@@ -75,8 +75,8 @@ class AudioRecordingService {
           }
           if (sampleCount > 0) {
             final rms = sqrt(sumSquares / sampleCount);
-            // Apply gain (10x) so typical speech shows visible waveform
-            final normalized = (rms / 32768.0 * 10.0).clamp(0.0, 1.0);
+            // Apply stronger gain (16x) so normal speaking moves waveform more clearly.
+            final normalized = (rms / 32768.0 * 16.0).clamp(0.0, 1.0);
             _amplitudeController.add(normalized);
           }
         }

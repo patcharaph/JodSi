@@ -97,6 +97,13 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
     if (note == null) return _buildError(context, ref.read(localeProvider).noteNotFound);
 
     final status = note.status;
+    if (status == NoteStatus.done) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToDetail();
+      });
+      return _buildLoading(context);
+    }
+
     if (status == NoteStatus.error) {
       return _buildError(context, ref.read(localeProvider).processingError);
     }
