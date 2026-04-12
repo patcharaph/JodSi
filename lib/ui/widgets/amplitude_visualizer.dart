@@ -5,11 +5,13 @@ import '../../core/theme/app_theme.dart';
 class AmplitudeVisualizer extends StatefulWidget {
   final Stream<double> amplitudeStream;
   final bool isRecording;
+  final Color activeColor;
 
   const AmplitudeVisualizer({
     super.key,
     required this.amplitudeStream,
     required this.isRecording,
+    this.activeColor = AppTheme.recordingRed,
   });
 
   @override
@@ -57,6 +59,7 @@ class _AmplitudeVisualizerState extends State<AmplitudeVisualizer>
             amplitudes: _amplitudes,
             currentIndex: _currentIndex,
             isRecording: widget.isRecording,
+            activeColor: widget.activeColor,
           ),
         );
       },
@@ -68,11 +71,13 @@ class _AmplitudePainter extends CustomPainter {
   final List<double> amplitudes;
   final int currentIndex;
   final bool isRecording;
+  final Color activeColor;
 
   _AmplitudePainter({
     required this.amplitudes,
     required this.currentIndex,
     required this.isRecording,
+    required this.activeColor,
   });
 
   @override
@@ -93,7 +98,7 @@ class _AmplitudePainter extends CustomPainter {
 
       final paint = Paint()
         ..color = isRecording
-            ? AppTheme.recordingRed.withValues(alpha: opacity)
+            ? activeColor.withValues(alpha: opacity)
             : AppTheme.textTertiary.withValues(alpha: 0.3)
         ..strokeWidth = barWidth * 0.6
         ..strokeCap = StrokeCap.round;

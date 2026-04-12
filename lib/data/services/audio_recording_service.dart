@@ -19,6 +19,9 @@ class AudioRecordingService {
   static const int _sampleRate = 16000;
   static const int _numChannels = 1;
   static const int _bitsPerSample = 16;
+  static const int _wavHeaderSize = 44;
+  static const double _maxSoftwareGain = 4.0;
+  static const double _targetRms = 900.0;
 
   Stream<double> get amplitudeStream => _amplitudeController.stream;
   bool _isRecording = false;
@@ -46,8 +49,8 @@ class AudioRecordingService {
         sampleRate: _sampleRate,
         numChannels: _numChannels,
         autoGain: true,
-        echoCancel: true,
-        noiseSuppress: true,
+        echoCancel: false,
+        noiseSuppress: false,
         androidConfig: AndroidRecordConfig(
           audioSource: AndroidAudioSource.voiceRecognition,
         ),
@@ -108,6 +111,7 @@ class AudioRecordingService {
     // Write proper WAV header
     if (_currentPath != null) {
       await _writeWavHeader(_currentPath!, _bytesWritten);
+      await _applySoftwareGainIfNeeded(_currentPath!);
     }
 
     return RecordingResult(
@@ -159,6 +163,91 @@ class AudioRecordingService {
     await raf.close();
   }
 
+  Future<void> _applySoftwareGainIfNeeded(String path) async {
+    final file = File(path);
+    if (!await file.exists()) return;
+
+    final analysisRaf = await file.open(mode: FileMode.read);
+    try {
+      final stats = await _analyzePcmLevel(analysisRaf);
+      final gain = _computeAdaptiveGain(stats.rms, stats.peak);
+      if (gain <= 1.05) return;
+
+      final tempFile = File('$path.gain_tmp');
+      final readRaf = await file.open(mode: FileMode.read);
+      final writeSink = tempFile.openWrite();
+      try {
+        final header = await readRaf.read(_wavHeaderSize);
+        writeSink.add(header);
+
+        while (true) {
+          final chunk = await readRaf.read(8192);
+          if (chunk.isEmpty) break;
+          writeSink.add(_applyGainToPcmChunk(chunk, gain));
+        }
+      } finally {
+        await readRaf.close();
+        await writeSink.flush();
+        await writeSink.close();
+      }
+
+      await file.delete();
+      await tempFile.rename(path);
+    } finally {
+      await analysisRaf.close();
+    }
+  }
+
+  Future<_PcmStats> _analyzePcmLevel(RandomAccessFile raf) async {
+    await raf.setPosition(_wavHeaderSize);
+
+    double sumSquares = 0;
+    int sampleCount = 0;
+    int peak = 0;
+
+    while (true) {
+      final chunk = await raf.read(8192);
+      if (chunk.isEmpty) break;
+      final limit = chunk.length - (chunk.length % 2);
+
+      for (int i = 0; i < limit; i += 2) {
+        final sample = chunk[i] | (chunk[i + 1] << 8);
+        final signed = sample > 32767 ? sample - 65536 : sample;
+        final absSample = signed.abs();
+        if (absSample > peak) peak = absSample;
+        sumSquares += signed * signed;
+        sampleCount++;
+      }
+    }
+
+    final rms = sampleCount > 0 ? sqrt(sumSquares / sampleCount) : 0.0;
+    return _PcmStats(rms: rms, peak: peak);
+  }
+
+  double _computeAdaptiveGain(double rms, int peak) {
+    if (rms <= 0 || peak <= 0) return 1.0;
+
+    final requested = (_targetRms / rms).clamp(1.0, _maxSoftwareGain);
+    final peakSafe = (32767.0 / peak) * 0.98;
+    return min(requested, peakSafe).clamp(1.0, _maxSoftwareGain);
+  }
+
+  Uint8List _applyGainToPcmChunk(Uint8List chunk, double gain) {
+    final boosted = Uint8List.fromList(chunk);
+    final limit = boosted.length - (boosted.length % 2);
+
+    for (int i = 0; i < limit; i += 2) {
+      final sample = boosted[i] | (boosted[i + 1] << 8);
+      final signed = sample > 32767 ? sample - 65536 : sample;
+      final amplified = (signed * gain).round().clamp(-32768, 32767);
+      final value = amplified < 0 ? amplified + 65536 : amplified;
+      boosted[i] = value & 0xFF;
+      boosted[i + 1] = (value >> 8) & 0xFF;
+    }
+
+    return boosted;
+  }
+
   int get elapsedSeconds {
     if (_startTime == null) return 0;
     return DateTime.now().difference(_startTime!).inSeconds;
@@ -180,4 +269,11 @@ class RecordingResult {
     required this.filePath,
     required this.durationSec,
   });
+}
+
+class _PcmStats {
+  final double rms;
+  final int peak;
+
+  const _PcmStats({required this.rms, required this.peak});
 }

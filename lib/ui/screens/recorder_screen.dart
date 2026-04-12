@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,10 +17,19 @@ class RecorderScreen extends ConsumerStatefulWidget {
 }
 
 class _RecorderScreenState extends ConsumerState<RecorderScreen> {
+  static const double _lowAmplitudeThreshold = 0.08;
+  static const int _lowAmplitudeConsecutiveTicks = 6;
+
+  StreamSubscription<double>? _amplitudeSub;
+  double _smoothedAmplitude = 0.0;
+  int _lowAmplitudeTicks = 0;
+  bool _isLowInput = false;
+
   @override
   void initState() {
     super.initState();
     _ensureAuth();
+    _subscribeAmplitude();
 
     // Register auto-stop callback for recording time limit
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -26,6 +37,45 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
         _handleRecordTap(context);
       };
     });
+  }
+
+  void _subscribeAmplitude() {
+    final recorder = ref.read(audioRecordingServiceProvider);
+    _amplitudeSub = recorder.amplitudeStream.listen((amplitude) {
+      if (!mounted) return;
+
+      final isRecording =
+          ref.read(recordingProvider).state == RecordingState.recording;
+
+      if (!isRecording) {
+        if (_isLowInput || _smoothedAmplitude > 0 || _lowAmplitudeTicks > 0) {
+          setState(() {
+            _isLowInput = false;
+            _smoothedAmplitude = 0.0;
+            _lowAmplitudeTicks = 0;
+          });
+        }
+        return;
+      }
+
+      _smoothedAmplitude = (_smoothedAmplitude * 0.7) + (amplitude * 0.3);
+      if (_smoothedAmplitude < _lowAmplitudeThreshold) {
+        _lowAmplitudeTicks++;
+      } else {
+        _lowAmplitudeTicks = 0;
+      }
+
+      final nextLowInput = _lowAmplitudeTicks >= _lowAmplitudeConsecutiveTicks;
+      if (nextLowInput != _isLowInput) {
+        setState(() => _isLowInput = nextLowInput);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _amplitudeSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _ensureAuth() async {
@@ -42,6 +92,9 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
     final recorder = ref.read(audioRecordingServiceProvider);
     final isRecording = recordingStatus.state == RecordingState.recording;
     final isUploading = recordingStatus.state == RecordingState.uploading;
+    final waveformColor = isRecording
+        ? (_isLowInput ? AppTheme.errorColor : Colors.green)
+        : AppTheme.recordingRed;
 
     return Scaffold(
       appBar: AppBar(
@@ -70,6 +123,7 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
               child: AmplitudeVisualizer(
                 amplitudeStream: recorder.amplitudeStream,
                 isRecording: isRecording,
+                activeColor: waveformColor,
               ),
             ),
             const Gap(32),
@@ -93,6 +147,28 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
               _statusText(recordingStatus),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
+
+            if (isRecording && _isLowInput) ...[
+              const Gap(8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    size: 16,
+                    color: AppTheme.errorColor,
+                  ),
+                  const Gap(6),
+                  Text(
+                    'เสียงเบาเกินไป ลองวางมือถือใกล้ขึ้น',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.errorColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
+              ),
+            ],
 
             // Bookmarks count
             if (recordingStatus.bookmarks.isNotEmpty) ...[
@@ -168,6 +244,11 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
     final status = ref.read(recordingProvider);
 
     if (status.state == RecordingState.idle) {
+      setState(() {
+        _isLowInput = false;
+        _smoothedAmplitude = 0.0;
+        _lowAmplitudeTicks = 0;
+      });
       await notifier.startRecording();
     } else if (status.state == RecordingState.recording) {
       final noteId = await notifier.stopRecording();
