@@ -25,13 +25,14 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
   int _lowAmplitudeTicks = 0;
   bool _isLowInput = false;
 
+  final _transcriptScrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     _ensureAuth();
     _subscribeAmplitude();
 
-    // Register auto-stop callback for recording time limit
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(recordingProvider.notifier).onAutoStop = () {
         _handleRecordTap(context);
@@ -75,15 +76,27 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
   @override
   void dispose() {
     _amplitudeSub?.cancel();
+    _transcriptScrollController.dispose();
     super.dispose();
   }
 
   Future<void> _ensureAuth() async {
     final authService = ref.read(authServiceProvider);
     await authService.ensureAuthenticated();
-    if (mounted) {
-      await authService.ensureProfile();
-    }
+    if (mounted) await authService.ensureProfile();
+  }
+
+  // Auto-scroll transcript to bottom when new text arrives
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_transcriptScrollController.hasClients) {
+        _transcriptScrollController.animateTo(
+          _transcriptScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -95,6 +108,12 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
     final waveformColor = isRecording
         ? (_isLowInput ? AppTheme.errorColor : Colors.green)
         : AppTheme.recordingRed;
+
+    final hasTranscript = recordingStatus.finalText.isNotEmpty ||
+        recordingStatus.interimText.isNotEmpty;
+
+    // Scroll when transcript updates
+    if (isRecording && hasTranscript) _scrollToBottom();
 
     return Scaffold(
       appBar: AppBar(
@@ -115,9 +134,18 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const Spacer(flex: 2),
+            // ── Transcript area ──────────────────────────────
+            Expanded(
+              child: isRecording && hasTranscript
+                  ? _TranscriptArea(
+                      finalText: recordingStatus.finalText,
+                      interimText: recordingStatus.interimText,
+                      scrollController: _transcriptScrollController,
+                    )
+                  : const SizedBox.shrink(),
+            ),
 
-            // Amplitude visualizer
+            // ── Waveform ─────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: AmplitudeVisualizer(
@@ -126,9 +154,9 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
                 activeColor: waveformColor,
               ),
             ),
-            const Gap(32),
+            const Gap(24),
 
-            // Timer display
+            // ── Timer ────────────────────────────────────────
             Text(
               recordingStatus.elapsedFormatted,
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
@@ -142,7 +170,7 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
             ),
             const Gap(8),
 
-            // Status text
+            // ── Status text ──────────────────────────────────
             Text(
               _statusText(recordingStatus),
               style: Theme.of(context).textTheme.bodyMedium,
@@ -153,11 +181,8 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    size: 16,
-                    color: AppTheme.errorColor,
-                  ),
+                  const Icon(Icons.warning_amber_rounded,
+                      size: 16, color: AppTheme.errorColor),
                   const Gap(6),
                   Text(
                     'เสียงเบาเกินไป ลองวางมือถือใกล้ขึ้น',
@@ -170,20 +195,20 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
               ),
             ],
 
-            // Bookmarks count
             if (recordingStatus.bookmarks.isNotEmpty) ...[
               const Gap(8),
               Text(
-                ref.watch(localeProvider).bookmarksCount(recordingStatus.bookmarks.length),
+                ref.watch(localeProvider).bookmarksCount(
+                    recordingStatus.bookmarks.length),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppTheme.primaryColor,
                     ),
               ),
             ],
 
-            const Spacer(flex: 2),
+            const Gap(16),
 
-            // Bookmark button (visible during recording)
+            // ── Bookmark button ──────────────────────────────
             if (isRecording)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
@@ -198,7 +223,7 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
                 ),
               ),
 
-            // Record button
+            // ── Record button ────────────────────────────────
             _RecordButton(
               isRecording: isRecording,
               isLoading: isUploading,
@@ -207,18 +232,18 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
 
             const Gap(16),
 
-            // Error message
             if (recordingStatus.errorMessage != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
                   recordingStatus.errorMessage!,
-                  style: TextStyle(color: AppTheme.errorColor, fontSize: 13),
+                  style:
+                      TextStyle(color: AppTheme.errorColor, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
               ),
 
-            const Spacer(),
+            const Gap(24),
           ],
         ),
       ),
@@ -234,8 +259,6 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
         return l10n.recording;
       case RecordingState.uploading:
         return l10n.uploading;
-      case RecordingState.processing:
-        return l10n.processing;
     }
   }
 
@@ -253,16 +276,15 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
     } else if (status.state == RecordingState.recording) {
       final noteId = await notifier.stopRecording();
 
-      // Check soft prompt before resetting state
       final shouldPrompt = await notifier.shouldShowSoftPrompt();
       final isAnon = ref.read(isAnonymousProvider);
 
       notifier.reset();
 
       if (noteId != null && mounted) {
-        await context.push('/processing/$noteId');
+        // Go directly to NoteDetail — transcript is ready, summary loads async
+        context.go('/notes/$noteId');
 
-        // Show soft prompt only after returning from processing screen
         if (shouldPrompt && isAnon && mounted) {
           LinkAccountSheet.show(context);
         }
@@ -270,6 +292,61 @@ class _RecorderScreenState extends ConsumerState<RecorderScreen> {
     }
   }
 }
+
+// ── Transcript display ───────────────────────────────────────────────────────
+
+class _TranscriptArea extends StatelessWidget {
+  final String finalText;
+  final String interimText;
+  final ScrollController scrollController;
+
+  const _TranscriptArea({
+    required this.finalText,
+    required this.interimText,
+    required this.scrollController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.primaryColor.withValues(alpha: 0.15),
+        ),
+      ),
+      child: ListView(
+        controller: scrollController,
+        children: [
+          if (finalText.isNotEmpty)
+            Text(
+              finalText,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.6,
+                    color: AppTheme.textPrimary,
+                  ),
+            ),
+          if (interimText.isNotEmpty) ...[
+            if (finalText.isNotEmpty) const SizedBox(height: 4),
+            Text(
+              interimText,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.6,
+                    color: AppTheme.textTertiary,
+                    fontStyle: FontStyle.italic,
+                  ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Record button ────────────────────────────────────────────────────────────
 
 class _RecordButton extends StatelessWidget {
   final bool isRecording;
@@ -299,7 +376,9 @@ class _RecordButton extends StatelessWidget {
                   : AppTheme.primaryColor,
           boxShadow: [
             BoxShadow(
-              color: (isRecording ? AppTheme.recordingRed : AppTheme.primaryColor)
+              color: (isRecording
+                      ? AppTheme.recordingRed
+                      : AppTheme.primaryColor)
                   .withValues(alpha: 0.3),
               blurRadius: isRecording ? 24 : 12,
               spreadRadius: isRecording ? 4 : 0,

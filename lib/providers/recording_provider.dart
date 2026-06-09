@@ -5,12 +5,15 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/config/app_config.dart';
+import '../core/l10n/app_localizations.dart';
 import '../data/models/note.dart';
 import '../data/services/audio_recording_service.dart';
+import '../data/services/deepgram_streaming_service.dart';
 import 'service_providers.dart';
 import 'notes_provider.dart';
+import 'locale_provider.dart';
 
-enum RecordingState { idle, recording, uploading, processing }
+enum RecordingState { idle, recording, uploading }
 
 class RecordingStatus {
   final RecordingState state;
@@ -18,6 +21,8 @@ class RecordingStatus {
   final String? noteId;
   final String? errorMessage;
   final List<Bookmark> bookmarks;
+  final String interimText;
+  final String finalText;
 
   const RecordingStatus({
     this.state = RecordingState.idle,
@@ -25,6 +30,8 @@ class RecordingStatus {
     this.noteId,
     this.errorMessage,
     this.bookmarks = const [],
+    this.interimText = '',
+    this.finalText = '',
   });
 
   RecordingStatus copyWith({
@@ -33,6 +40,8 @@ class RecordingStatus {
     String? noteId,
     String? errorMessage,
     List<Bookmark>? bookmarks,
+    String? interimText,
+    String? finalText,
   }) {
     return RecordingStatus(
       state: state ?? this.state,
@@ -40,6 +49,8 @@ class RecordingStatus {
       noteId: noteId ?? this.noteId,
       errorMessage: errorMessage,
       bookmarks: bookmarks ?? this.bookmarks,
+      interimText: interimText ?? this.interimText,
+      finalText: finalText ?? this.finalText,
     );
   }
 
@@ -58,6 +69,7 @@ final recordingProvider =
 class RecordingNotifier extends StateNotifier<RecordingStatus> {
   final Ref _ref;
   Timer? _timer;
+  StreamSubscription<DeepgramResult>? _deepgramSub;
   void Function()? onAutoStop;
 
   RecordingNotifier(this._ref) : super(const RecordingStatus());
@@ -65,16 +77,40 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
   AudioRecordingService get _recorder =>
       _ref.read(audioRecordingServiceProvider);
 
+  DeepgramStreamingService get _deepgram =>
+      _ref.read(deepgramStreamingServiceProvider);
+
   Future<bool> startRecording() async {
     try {
       final hasPermission = await _recorder.hasPermission();
       if (!hasPermission) {
-        state = state.copyWith(
-          errorMessage: 'ไม่ได้รับสิทธิ์ในการอัดเสียง',
-        );
+        state = state.copyWith(errorMessage: 'ไม่ได้รับสิทธิ์ในการอัดเสียง');
         return false;
       }
 
+      // Connect Deepgram WebSocket before starting the mic
+      final locale = _ref.read(localeProvider);
+      final deepgramLang = locale.language == AppLanguage.th ? 'th' : 'en-US';
+
+      await _deepgram.connect(
+        pcmStream: _recorder.pcmStream,
+        language: deepgramLang,
+      );
+
+      // Subscribe to transcript results
+      _deepgramSub = _deepgram.results.listen((result) {
+        if (!mounted) return;
+        if (result.isFinal) {
+          final newFinal = state.finalText.isEmpty
+              ? result.text
+              : '${state.finalText} ${result.text}';
+          state = state.copyWith(finalText: newFinal, interimText: '');
+        } else {
+          state = state.copyWith(interimText: result.text);
+        }
+      });
+
+      // Start audio recording (PCM stream now flows to both file and Deepgram)
       await _recorder.start();
 
       state = state.copyWith(
@@ -82,25 +118,27 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
         elapsedSeconds: 0,
         bookmarks: [],
         errorMessage: null,
+        interimText: '',
+        finalText: '',
       );
 
       final maxSeconds = AppConfig.freeMaxRecordingMinutes * 60;
-
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (state.state == RecordingState.recording) {
           final next = state.elapsedSeconds + 1;
           state = state.copyWith(elapsedSeconds: next);
-
-          // Auto-stop at time limit
-          if (next >= maxSeconds) {
-            onAutoStop?.call();
-          }
+          if (next >= maxSeconds) onAutoStop?.call();
         }
       });
 
       return true;
     } catch (e) {
-      state = state.copyWith(errorMessage: e.toString());
+      dev.log('[JodSi] startRecording ERROR: $e');
+      await _deepgram.disconnect();
+      state = state.copyWith(
+        state: RecordingState.idle,
+        errorMessage: e.toString(),
+      );
       return false;
     }
   }
@@ -110,31 +148,21 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
       _timer?.cancel();
       _timer = null;
 
-      dev.log('[JodSi] stopRecording: stopping recorder...');
+      // Stop sending PCM to file first
       final result = await _recorder.stop();
-      dev.log('[JodSi] stopRecording: stopped, file=${result.filePath}, duration=${result.durationSec}s');
+      dev.log('[JodSi] stopRecording: recorder stopped, file=${result.filePath}');
 
-      // Wait for file system to flush
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Signal Deepgram to flush + collect remaining finals
+      await _deepgram.disconnect();
+      await _deepgramSub?.cancel();
+      _deepgramSub = null;
 
-      // Check file exists
+      final fullText = state.finalText.trim();
+      dev.log('[JodSi] stopRecording: transcript length=${fullText.length}');
+
       final audioFile = File(result.filePath);
-      final fileExists = await audioFile.exists();
-      final fileSize = fileExists ? await audioFile.length() : 0;
-      dev.log('[JodSi] stopRecording: fileExists=$fileExists, size=$fileSize bytes');
-
-      // Log first 16 bytes of audio file to verify content
-      if (fileExists && fileSize > 16) {
-        final bytes = await audioFile.openRead(0, 16).fold<List<int>>(
-          [],
-          (prev, chunk) => prev..addAll(chunk),
-        );
-        final hexStr = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
-        dev.log('[JodSi] stopRecording: audio header (first 16 bytes): $hexStr');
-      }
-
-      if (!fileExists || fileSize == 0) {
-        dev.log('[JodSi] stopRecording: ERROR - audio file missing or empty!');
+      if (!await audioFile.exists() || await audioFile.length() == 0) {
+        dev.log('[JodSi] stopRecording: audio file missing or empty');
         state = state.copyWith(
           state: RecordingState.idle,
           errorMessage: 'Audio file missing or empty',
@@ -144,56 +172,41 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
 
       state = state.copyWith(state: RecordingState.uploading);
 
-      // Create note in DB
-      dev.log('[JodSi] stopRecording: creating note in DB...');
+      // Create note + upload audio
       final notesNotifier = _ref.read(notesListProvider.notifier);
       final note = await notesNotifier.createNote();
       dev.log('[JodSi] stopRecording: note created id=${note.id}');
 
-      state = state.copyWith(noteId: note.id);
-
-      // Upload audio
-      dev.log('[JodSi] stopRecording: uploading audio to storage...');
       final storageService = _ref.read(storageServiceProvider);
       final audioUrl = await storageService.uploadAudio(
         filePath: result.filePath,
         noteId: note.id,
       );
-      dev.log('[JodSi] stopRecording: uploaded, url=$audioUrl');
+      dev.log('[JodSi] stopRecording: uploaded url=$audioUrl');
 
-      // Clean up local audio file after successful upload
+      // Cleanup local file
       try {
-        final localFile = File(result.filePath);
-        if (await localFile.exists()) {
-          await localFile.delete();
-        }
-      } catch (_) {
-        // Non-critical — ignore cleanup errors
-      }
+        await audioFile.delete();
+      } catch (_) {}
 
-      // Update note with audio URL and duration
-      dev.log('[JodSi] stopRecording: updating note status to transcribing...');
+      // Update note: attach audio, set status to summarizing
       final dbService = _ref.read(databaseServiceProvider);
       await dbService.updateNote(note.id, {
         'audio_url': audioUrl,
         'duration_sec': result.durationSec,
-        'status': NoteStatus.transcribing.name,
+        'status': NoteStatus.summarizing.name,
         'bookmarks': state.bookmarks.map((b) => b.toJson()).toList(),
       });
-      dev.log('[JodSi] stopRecording: note updated to transcribing');
 
-      state = state.copyWith(state: RecordingState.processing);
-
-      // Trigger processing pipeline
-      dev.log('[JodSi] stopRecording: calling process-audio edge function...');
+      // Fire-and-forget summary generation (saves transcript + calls LLM)
       final processingService = _ref.read(processingServiceProvider);
-      await processingService.processAudio(
+      processingService.generateSummary(
         noteId: note.id,
-        audioUrl: audioUrl,
+        fullText: fullText,
+        segments: const [],
       );
-      dev.log('[JodSi] stopRecording: process-audio call succeeded');
+      dev.log('[JodSi] stopRecording: generate-summary fired');
 
-      // Increment recording count for soft prompt
       await _incrementRecordingCount();
 
       return note.id;
@@ -209,12 +222,8 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
 
   void addBookmark() {
     if (state.state != RecordingState.recording) return;
-    final bookmark = Bookmark(
-      timestampSec: state.elapsedSeconds.toDouble(),
-    );
-    state = state.copyWith(
-      bookmarks: [...state.bookmarks, bookmark],
-    );
+    final bookmark = Bookmark(timestampSec: state.elapsedSeconds.toDouble());
+    state = state.copyWith(bookmarks: [...state.bookmarks, bookmark]);
   }
 
   void reset() {
@@ -244,6 +253,7 @@ class RecordingNotifier extends StateNotifier<RecordingStatus> {
   @override
   void dispose() {
     _timer?.cancel();
+    _deepgramSub?.cancel();
     super.dispose();
   }
 }

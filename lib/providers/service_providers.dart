@@ -23,6 +23,12 @@ final audioRecordingServiceProvider = Provider<AudioRecordingService>((ref) {
   return service;
 });
 
+final deepgramStreamingServiceProvider = Provider<DeepgramStreamingService>((ref) {
+  final service = DeepgramStreamingService();
+  ref.onDispose(() => service.dispose());
+  return service;
+});
+
 final adminServiceProvider = Provider<AdminService>((ref) {
   return AdminService();
 });

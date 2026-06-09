@@ -11,6 +11,7 @@ class AudioRecordingService {
   final AudioRecorder _recorder = AudioRecorder();
   StreamSubscription<List<int>>? _streamSub;
   final _amplitudeController = StreamController<double>.broadcast();
+  final _pcmController = StreamController<List<int>>.broadcast();
   String? _currentPath;
   DateTime? _startTime;
   IOSink? _fileSink;
@@ -24,6 +25,7 @@ class AudioRecordingService {
   static const double _targetRms = 900.0;
 
   Stream<double> get amplitudeStream => _amplitudeController.stream;
+  Stream<List<int>> get pcmStream => _pcmController.stream;
   bool _isRecording = false;
   bool get isRecording => _isRecording;
 
@@ -64,6 +66,7 @@ class AudioRecordingService {
       if (_fileSink != null) {
         _fileSink!.add(data);
         _bytesWritten += data.length;
+        _pcmController.add(data);
 
         // Calculate RMS amplitude from PCM data for waveform UI
         if (data.length >= 2) {
@@ -257,6 +260,7 @@ class AudioRecordingService {
     _streamSub?.cancel();
     await _fileSink?.close();
     await _amplitudeController.close();
+    await _pcmController.close();
     await _recorder.dispose();
   }
 }

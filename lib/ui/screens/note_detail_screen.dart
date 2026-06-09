@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/l10n/app_localizations.dart';
 import '../../data/models/models.dart';
@@ -144,7 +145,7 @@ class _SummaryTab extends StatelessWidget {
     return summaryAsync.when(
       data: (summary) {
         if (summary == null) {
-          return Center(child: Text(l10n.noSummaryYet));
+          return _SummarySkeleton(l10n: l10n);
         }
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -200,6 +201,52 @@ class _SummaryTab extends StatelessWidget {
         child: CircularProgressIndicator(color: AppTheme.primaryColor),
       ),
       error: (e, _) => Center(child: Text(l10n.errorWith(e.toString()))),
+    );
+  }
+}
+
+class _SummarySkeleton extends StatelessWidget {
+  final AppLocalizations l10n;
+
+  const _SummarySkeleton({required this.l10n});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Shimmer.fromColors(
+        baseColor: AppTheme.backgroundColor,
+        highlightColor: AppTheme.primaryLight.withValues(alpha: 0.3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _shimmerLine(width: 160, height: 20),
+            const Gap(16),
+            _shimmerLine(width: double.infinity),
+            const Gap(8),
+            _shimmerLine(width: double.infinity),
+            const Gap(8),
+            _shimmerLine(width: 200),
+            const Gap(24),
+            _shimmerLine(width: 120, height: 20),
+            const Gap(16),
+            _shimmerLine(width: double.infinity),
+            const Gap(8),
+            _shimmerLine(width: 260),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _shimmerLine({double width = double.infinity, double height = 16}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+      ),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/config/supabase_config.dart';
 import '../models/models.dart';
@@ -86,6 +88,40 @@ class DatabaseService {
 
     if (response == null) return null;
     return Summary.fromJson(response);
+  }
+
+  // Emits the current summary, then re-emits when it's inserted (streaming flow).
+  Stream<Summary?> watchSummary(String noteId) async* {
+    yield await getSummary(noteId);
+
+    final controller = StreamController<Summary?>();
+    final channel = _client
+        .channel('watch-summary-$noteId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'summaries',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'note_id',
+            value: noteId,
+          ),
+          callback: (payload) {
+            try {
+              controller.add(Summary.fromJson(payload.newRecord));
+            } catch (_) {}
+          },
+        )
+        .subscribe();
+
+    try {
+      await for (final summary in controller.stream) {
+        yield summary;
+      }
+    } finally {
+      await _client.removeChannel(channel);
+      await controller.close();
+    }
   }
 
   // ─── Realtime ───────────────────────────────────────

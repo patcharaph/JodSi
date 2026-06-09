@@ -82,7 +82,7 @@ final transcriptProvider =
 });
 
 final summaryProvider =
-    FutureProvider.family<Summary?, String>((ref, noteId) async {
+    StreamProvider.family<Summary?, String>((ref, noteId) {
   final dbService = ref.watch(databaseServiceProvider);
-  return dbService.getSummary(noteId);
+  return dbService.watchSummary(noteId);
 });
